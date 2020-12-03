@@ -80,7 +80,6 @@ reqwest = { version = "0.10.0", default-features = false, features = ["default-t
 serde_json = { version = "1.0.41", default-features = false }
 tokio-retry = { version = "0.2.0", default-features = false }
 tungstenite = {version = "0.10", default-features = false }
-tokio-tungstenite = {version = "0.11.0", default-features = false }
 criterion = { version = "0.3", default-features = false }
 net2 = { version = "0.2.33", default-features = false }
 [badges]
