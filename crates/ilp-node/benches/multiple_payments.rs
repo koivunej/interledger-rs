@@ -2,16 +2,14 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use ilp_node::InterledgerNode;
 use serde_json::{self, json};
 use tokio::runtime::Runtime;
-use tungstenite::{client, handshake::client::Request};
 use tokio::sync::mpsc::channel;
+use tungstenite::{client, handshake::client::Request};
 
 mod redis_helpers;
 mod test_helpers;
 
 use redis_helpers::*;
 use test_helpers::*;
-
-
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut rt = Runtime::new().unwrap();
@@ -128,9 +126,6 @@ fn criterion_benchmark(c: &mut Criterion) {
         },
     );
 
-
-    
-
     let ws_request = Request::builder()
         .uri(format!("ws://localhost:{}/payments/incoming", node_b_http))
         .header("Authorization", "Bearer admin")
@@ -143,17 +138,19 @@ fn criterion_benchmark(c: &mut Criterion) {
             "http://localhost:{}/accounts/{}/payments",
             node_a_http, "alice_on_a"
         ))
-        .header("Authorization", format!("Bearer {}", "default account holder"))
+        .header(
+            "Authorization",
+            format!("Bearer {}", "default account holder"),
+        )
         .json(&json!({
             "receiver": format!("http://localhost:{}/accounts/{}/spsp", node_b_http,"bob_on_b"),
             "source_amount": 1000,
             "slippage": 0.025 // allow up to 2.5% slippage
         }));
     let handle = std::thread::spawn(move || {
-
-        let mut payments_ws = client::connect(ws_request).unwrap().0; 
+        let mut payments_ws = client::connect(ws_request).unwrap().0;
         loop {
-            let msg = match payments_ws.read_message(){
+            let msg = match payments_ws.read_message() {
                 Ok(message) => message,
                 Err(_) => break,
             };
@@ -163,19 +160,15 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("send money", |b| {
-        b.iter(
-            || {
-                rt.block_on(async {
-                    req.try_clone().unwrap().send().await.unwrap();
-                    async {
-                        &receiver.recv().await.unwrap().into_text().unwrap();
-                    }.await;
-                });
-            },
-        )
+        b.iter(|| {
+            rt.block_on(async {
+                req.try_clone().unwrap().send().await.unwrap();
+                &receiver.recv().await.unwrap().into_text().unwrap();
+            });
+        })
     });
     drop(rt);
-    handle.join().unwrap(); 
+    handle.join().unwrap();
 }
 criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);
