@@ -149,12 +149,8 @@ fn criterion_benchmark(c: &mut Criterion) {
         }));
     let handle = std::thread::spawn(move || {
         let mut payments_ws = client::connect(ws_request).unwrap().0;
-        loop {
-            let msg = match payments_ws.read_message() {
-                Ok(message) => message,
-                Err(_) => break,
-            };
-            sender.try_send(msg).unwrap();
+        while let Ok(message) = payments_ws.read_message(){
+            sender.try_send(message).unwrap();
         }
         payments_ws.close(None).unwrap();
     });
@@ -163,7 +159,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| {
             rt.block_on(async {
                 req.try_clone().unwrap().send().await.unwrap();
-                &receiver.recv().await.unwrap().into_text().unwrap();
+                receiver.recv().await.unwrap().into_text().unwrap();
             });
         })
     });
