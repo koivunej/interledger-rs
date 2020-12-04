@@ -155,7 +155,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         payments_ws.close(None).unwrap();
     });
 
-    c.bench_function("send money", |b| {
+    c.bench_function("multiple_payments", |b| {
         b.iter(|| {
             rt.block_on(async {
                 req.try_clone().unwrap().send().await.unwrap();
