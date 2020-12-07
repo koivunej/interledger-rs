@@ -6,6 +6,6 @@ Interledger packets. See the examples for how to configure and use the `ilp-node
 #### Benchmark
 
 ```bash #
-# This runs the multiple payments benchmark
-cargo bench -- multiple_payments
+# This runs the process payment benchmark
+cargo bench -- process_payment
 ```

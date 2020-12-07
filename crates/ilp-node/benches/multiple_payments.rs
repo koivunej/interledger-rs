@@ -149,13 +149,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         }));
     let handle = std::thread::spawn(move || {
         let mut payments_ws = client::connect(ws_request).unwrap().0;
-        while let Ok(message) = payments_ws.read_message(){
+        while let Ok(message) = payments_ws.read_message() {
             sender.try_send(message).unwrap();
         }
         payments_ws.close(None).unwrap();
     });
 
-    c.bench_function("multiple_payments", |b| {
+    c.bench_function("process_payment", |b| {
         b.iter(|| {
             rt.block_on(async {
                 req.try_clone().unwrap().send().await.unwrap();
