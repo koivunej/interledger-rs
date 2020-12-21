@@ -133,7 +133,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         .unwrap();
     let (mut sender, mut receiver) = channel(100);
     let client = reqwest::Client::new();
-    let req = client
+    let req_low = client
         .post(&format!(
             "http://localhost:{}/accounts/{}/payments",
             node_a_http, "alice_on_a"
@@ -144,7 +144,21 @@ fn criterion_benchmark(c: &mut Criterion) {
         )
         .json(&json!({
             "receiver": format!("http://localhost:{}/accounts/{}/spsp", node_b_http,"bob_on_b"),
-            "source_amount": 1000,
+            "source_amount": 100,
+            "slippage": 0.025 // allow up to 2.5% slippage
+        }));
+    let req_high = client
+        .post(&format!(
+            "http://localhost:{}/accounts/{}/payments",
+            node_a_http, "alice_on_a"
+        ))
+        .header(
+            "Authorization",
+            format!("Bearer {}", "default account holder"),
+        )
+        .json(&json!({
+            "receiver": format!("http://localhost:{}/accounts/{}/spsp", node_b_http,"bob_on_b"),
+            "source_amount": 100000,
             "slippage": 0.025 // allow up to 2.5% slippage
         }));
     let handle = std::thread::spawn(move || {
@@ -155,14 +169,24 @@ fn criterion_benchmark(c: &mut Criterion) {
         payments_ws.close(None).unwrap();
     });
 
-    c.bench_function("process_payment", |b| {
+    c.bench_function("process_payment (Low packet count)", |b| {
         b.iter(|| {
             rt.block_on(async {
-                req.try_clone().unwrap().send().await.unwrap();
+                req_low.try_clone().unwrap().send().await.unwrap();
                 receiver.recv().await.unwrap().into_text().unwrap();
             });
         })
     });
+
+    c.bench_function("process_payment (High packet count)", |b| {
+        b.iter(|| {
+            rt.block_on(async {
+                req_high.try_clone().unwrap().send().await.unwrap();
+                receiver.recv().await.unwrap().into_text().unwrap();
+            });
+        })
+    });
+
     drop(rt);
     handle.join().unwrap();
 }
