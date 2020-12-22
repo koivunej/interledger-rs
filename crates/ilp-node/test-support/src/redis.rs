@@ -1,6 +1,4 @@
 // Copied from https://github.com/mitsuhiko/redis-rs/blob/9a1777e8a90c82c315a481cdf66beb7d69e681a2/tests/support/mod.rs
-#![allow(dead_code)]
-
 use futures::TryFutureExt;
 use redis_crate::{self as redis, ConnectionAddr, ConnectionInfo, RedisError};
 use socket2::{Domain, Socket, Type};
@@ -12,7 +10,6 @@ use std::process;
 use std::thread::sleep;
 use std::time::Duration;
 
-#[allow(unused)]
 pub fn connection_info_to_string(info: ConnectionInfo) -> String {
     match info.addr.as_ref() {
         ConnectionAddr::Tcp(url, port) => format!("redis://{}:{}/{}", url, port, info.db),

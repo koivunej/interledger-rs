@@ -10,7 +10,6 @@ use std::str;
 // use tracing_subscriber;
 use uuid::Uuid;
 
-#[allow(unused)]
 pub fn random_secret() -> String {
     let mut bytes: [u8; 32] = [0; 32];
     SystemRandom::new().fill(&mut bytes).unwrap();
@@ -23,7 +22,6 @@ pub struct BalanceData {
     pub asset_code: String,
 }
 
-#[allow(unused)]
 pub async fn create_account_on_node<T: Serialize>(
     api_port: u16,
     data: T,
@@ -44,7 +42,6 @@ pub async fn create_account_on_node<T: Serialize>(
     Ok(res.json::<Account>().map_err(|_| ()).await.unwrap())
 }
 
-#[allow(unused)]
 pub async fn create_account_on_engine<T: Serialize>(
     engine_port: u16,
     account_id: T,
@@ -65,7 +62,6 @@ pub async fn create_account_on_engine<T: Serialize>(
     Ok(str::from_utf8(&data).unwrap().to_string())
 }
 
-#[allow(unused)]
 pub async fn send_money_to_username<T: Display + Debug>(
     from_port: u16,
     to_port: u16,
@@ -94,7 +90,6 @@ pub async fn send_money_to_username<T: Display + Debug>(
     Ok(res.json::<StreamDelivery>().await.unwrap())
 }
 
-#[allow(unused)]
 pub async fn get_all_accounts(node_port: u16, admin_token: &str) -> Result<Vec<Account>, ()> {
     let client = reqwest::Client::new();
     let res = client
@@ -110,7 +105,6 @@ pub async fn get_all_accounts(node_port: u16, admin_token: &str) -> Result<Vec<A
     Ok(ret)
 }
 
-#[allow(unused)]
 #[allow(clippy::mutable_key_type)]
 pub fn accounts_to_ids(accounts: Vec<Account>) -> HashMap<Address, Uuid> {
     let mut map = HashMap::new();
@@ -120,7 +114,6 @@ pub fn accounts_to_ids(accounts: Vec<Account>) -> HashMap<Address, Uuid> {
     map
 }
 
-#[allow(unused)]
 pub async fn get_balance<T: Display>(
     account_id: T,
     node_port: u16,
