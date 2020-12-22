@@ -9,10 +9,15 @@ edition = "2018"
 
 [features]
 default = ["redis"]
-redis = ["redis_crate", "interledger/redis"]
+redis = ["redis_crate", "interledger-store", "interledger-store/redis"]
 
 [dependencies]
-interledger = { path = "../interledger", version = "1.0.0", default-features = false, features = ["node"] }
+# interledger = { path = "../interledger", version = "1.0.0", default-features = false, features = ["node"] }
+interledger-service = { path = "../interledger-service", version = "1.0.0", default-features = false }
+interledger-stream = { path = "../interledger-stream", version = "1.0.0", default-features = false }
+interledger-store = { path = "../interledger-store", version = "1.0.0", optional = true, default-features = false }
+interledger-packet = { path = "../interledger-packet", version = "1.0.0", default-features = false }
+
 ring = { version = "0.16.9", default-features = false }
 serde = { version = "1.0.101", default-features = false }
 hex = { version = "0.4.0", default-features = false }

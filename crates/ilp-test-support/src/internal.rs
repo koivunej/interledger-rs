@@ -1,6 +1,9 @@
 use futures::TryFutureExt;
-use interledger::stream::StreamDelivery;
-use interledger::{packet::Address, service::Account as AccountTrait, store::account::Account};
+use interledger_packet::Address;
+use interledger_service::Account as AccountTrait;
+use interledger_store::account::Account;
+use interledger_stream::StreamDelivery;
+
 use ring::rand::{SecureRandom, SystemRandom};
 use serde::Serialize;
 use serde_json::json;
