@@ -1368,6 +1368,7 @@ dependencies = [
  "futures-retry",
  "http 0.2.1",
  "hyper 0.13.8",
+ "ilp-test-support",
  "interledger-errors",
  "interledger-http",
  "interledger-packet",

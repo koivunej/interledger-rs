@@ -39,6 +39,7 @@ mockito = { version = "0.23.1", default-features = false }
 env_logger = { version = "0.7.0", default-features = false }
 socket2 = "0.3.15"
 rand = { version = "0.7.2", default-features = false }
+ilp-test-support = { path = "../ilp-test-support", features = ["redis"] }
 
 [features]
 settlement_api = []
