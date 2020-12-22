@@ -1422,6 +1422,7 @@ dependencies = [
  "env_logger",
  "futures 0.3.8",
  "http 0.2.1",
+ "ilp-test-support",
  "interledger-api",
  "interledger-btp",
  "interledger-ccp",
