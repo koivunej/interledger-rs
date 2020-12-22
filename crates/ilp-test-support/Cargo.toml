@@ -1,6 +1,6 @@
 [package]
-name = "test-support"
-description = "non-published test support crate for ilp-node tests and benches"
+name = "ilp-test-support"
+description = "non-published test support crate for ilp tests and benches"
 version = "0.1.0"
 authors = ["Joonas Koivunen <joonas.koivunen@gmail.com>"]
 edition = "2018"
@@ -12,7 +12,7 @@ default = ["redis"]
 redis = ["redis_crate", "interledger/redis"]
 
 [dependencies]
-interledger = { path = "../../interledger", version = "1.0.0", default-features = false, features = ["node"] }
+interledger = { path = "../interledger", version = "1.0.0", default-features = false, features = ["node"] }
 ring = { version = "0.16.9", default-features = false }
 serde = { version = "1.0.101", default-features = false }
 hex = { version = "0.4.0", default-features = false }
