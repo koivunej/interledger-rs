@@ -1028,6 +1028,7 @@ dependencies = [
  "serde",
  "serde_json",
  "socket2",
+ "test-support",
  "tokio 0.2.22",
  "tokio-retry",
  "tracing",
@@ -2691,6 +2692,25 @@ dependencies = [
  "redox_syscall",
  "remove_dir_all",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "test-support"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.5.6",
+ "futures 0.3.8",
+ "hex",
+ "interledger",
+ "rand 0.7.3",
+ "redis",
+ "reqwest",
+ "ring",
+ "serde",
+ "serde_json",
+ "socket2",
+ "tokio 0.2.22",
+ "uuid",
 ]
 
 [[package]]

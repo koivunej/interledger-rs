@@ -8,5 +8,5 @@ mod three_nodes;
 #[cfg(feature = "monitoring")]
 mod prometheus;
 
-mod redis_helpers;
-mod test_helpers;
+use test_support::internal as test_helpers;
+use test_support::redis as redis_helpers;
