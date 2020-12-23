@@ -3,7 +3,7 @@
 members = [
   "./crates/ilp-cli",
   "./crates/ilp-node",
-  "./crates/ilp-test-support",
+  "./crates/ilp-node/ilp-test-support",
   "./crates/interledger",
   "./crates/interledger-api",
   "./crates/interledger-btp",
