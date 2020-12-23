@@ -1023,6 +1023,7 @@ dependencies = [
  "parking_lot 0.10.2",
  "rand 0.7.3",
  "redis",
+ "redis-support",
  "reqwest",
  "ring",
  "secrecy",
@@ -1053,14 +1054,10 @@ dependencies = [
  "interledger-service",
  "interledger-store",
  "interledger-stream",
- "rand 0.7.3",
- "redis",
  "reqwest",
  "ring",
  "serde",
  "serde_json",
- "socket2",
- "tokio 0.2.22",
  "uuid",
 ]
 
@@ -1380,6 +1377,7 @@ dependencies = [
  "parking_lot 0.10.2",
  "rand 0.7.3",
  "redis",
+ "redis-support",
  "reqwest",
  "ring",
  "serde",
@@ -1422,7 +1420,6 @@ dependencies = [
  "env_logger",
  "futures 0.3.8",
  "http 0.2.1",
- "ilp-test-support",
  "interledger-api",
  "interledger-btp",
  "interledger-ccp",
@@ -1441,6 +1438,7 @@ dependencies = [
  "parking_lot 0.10.2",
  "rand 0.7.3",
  "redis",
+ "redis-support",
  "ring",
  "secrecy",
  "serde",
@@ -2292,6 +2290,19 @@ dependencies = [
  "tokio 0.2.22",
  "tokio-util 0.2.0",
  "url 2.1.1",
+]
+
+[[package]]
+name = "redis-support"
+version = "0.1.0"
+dependencies = [
+ "futures 0.3.8",
+ "rand 0.7.3",
+ "redis",
+ "reqwest",
+ "serde_json",
+ "socket2",
+ "tokio 0.2.22",
 ]
 
 [[package]]

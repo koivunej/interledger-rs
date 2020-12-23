@@ -1,5 +1,5 @@
 #[cfg(test)]
-use ilp_test_support::redis as redis_helpers;
+use redis_support as redis_helpers;
 #[cfg(test)]
 mod store_helpers;
 #[cfg(test)]

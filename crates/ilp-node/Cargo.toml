@@ -11,7 +11,7 @@ default-run = "ilp-node"
 [features]
 default = ["balance-tracking", "redis", "monitoring"]
 balance-tracking = []
-redis = ["redis_crate", "interledger/redis", "ilp-test-support/redis"]
+redis = ["redis_crate", "interledger/redis"]
 
 # This is an experimental feature that enables submitting packet
 # records to Google Cloud PubSub. This may be removed in the future.
@@ -83,6 +83,7 @@ tungstenite = {version = "0.10", default-features = false }
 net2 = { version = "0.2.33", default-features = false }
 criterion = { version = "0.3", default-features = false }
 ilp-test-support = { path = "../ilp-test-support" }
+redis-support = { path = "../redis-support" }
 
 [badges]
 circle-ci = { repository = "interledger-rs/interledger-rs" }

@@ -5,8 +5,8 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc::channel;
 use tungstenite::{client, handshake::client::Request};
 
-use ilp_test_support::internal::*;
-use ilp_test_support::redis::*;
+use ilp_test_support::*;
+use redis_support::*;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut rt = Runtime::new().unwrap();

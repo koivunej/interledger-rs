@@ -83,7 +83,7 @@ mod fixtures {
     });
 }
 
-use ilp_test_support::redis as redis_helpers;
+use redis_support as redis_helpers;
 
 mod store_helpers {
     use super::fixtures::*;
