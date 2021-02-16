@@ -6,8 +6,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use ilp_node::InterledgerNode;
 use serde_json::{self, json};
+use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::channel;
+use tokio::time::{delay_for, timeout};
 use tungstenite::{client, handshake::client::Request};
 
 mod redis_helpers;
@@ -19,6 +21,11 @@ use test_helpers::*;
 /// The *_hundred_packets bench fns send 100 packets for which we expect to read 100 + 1 responses
 /// from the websocket.
 const BUFFER_SIZE: usize = 101;
+
+/// There will be executions where routes seem to be propagated right away during init, but on most
+/// runs they require this propagation delay. It will create additional noise to results.
+/// FIXME: this is a workaround to difficult startup
+const ROUTE_BROADCAST_INTERVAL: u64 = 500;
 
 fn multiple_payments_btp(c: &mut Criterion) {
     let mut rt = Runtime::new().unwrap();
@@ -73,7 +80,7 @@ fn multiple_payments_btp(c: &mut Criterion) {
         "http_bind_address": format!("127.0.0.1:{}", node_a_http),
         "settlement_api_bind_address": format!("127.0.0.1:{}", node_a_settlement),
         "secret_seed": random_secret(),
-        "route_broadcast_interval": 200,
+        "route_broadcast_interval": ROUTE_BROADCAST_INTERVAL,
         "exchange_rate": {
             "poll_interval": 60000
         },
@@ -89,7 +96,7 @@ fn multiple_payments_btp(c: &mut Criterion) {
         "http_bind_address": format!("127.0.0.1:{}", node_b_http),
         "settlement_api_bind_address": format!("127.0.0.1:{}", node_b_settlement),
         "secret_seed": random_secret(),
-        "route_broadcast_interval": Some(200),
+        "route_broadcast_interval": ROUTE_BROADCAST_INTERVAL,
         "exchange_rate": {
             "poll_interval": 60000
         },
@@ -115,10 +122,6 @@ fn multiple_payments_btp(c: &mut Criterion) {
             create_account_on_node(node_a_http, b_on_a, "admin")
                 .await
                 .unwrap();
-
-            // Sleeping outside of block_on will result in spawned node tasks being
-            // suspended. Sleeping inside block_on will allow route propagation.
-            tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
         },
     );
 
@@ -158,7 +161,17 @@ fn multiple_payments_btp(c: &mut Criterion) {
             "source_amount": 10000,
             "slippage": 0.025 // allow up to 2.5% slippage
         }));
+
     let handle = std::thread::spawn(move || payment_notifications_shovel(ws_request, sender));
+
+    rt.block_on(async {
+        timeout(
+            Duration::from_secs(5),
+            node_readyness(&req_low, &mut receiver),
+        )
+        .await
+        .expect("nodes did not become ready in time")
+    });
 
     c.bench_function("process_payment_btp_single_packet", |b| {
         b.iter(|| bench_fn(&mut rt, &req_low, &mut receiver, 2))
@@ -271,6 +284,7 @@ fn multiple_payments_http(c: &mut Criterion) {
         "database_url": connection_info_to_string(connection_info1),
         "http_bind_address": format!("127.0.0.1:{}", node_a_http),
         "settlement_api_bind_address": format!("127.0.0.1:{}", node_a_settlement),
+        "route_broadcast_interval": ROUTE_BROADCAST_INTERVAL,
     }))
     .expect("Error creating node_a.");
 
@@ -281,6 +295,7 @@ fn multiple_payments_http(c: &mut Criterion) {
         "database_url": connection_info_to_string(connection_info2),
         "http_bind_address": format!("127.0.0.1:{}", node_b_http),
         "settlement_api_bind_address": format!("127.0.0.1:{}", node_b_settlement),
+        "route_broadcast_interval": ROUTE_BROADCAST_INTERVAL,
     }))
     .expect("Error creating node_b.");
     rt.block_on(
@@ -302,10 +317,6 @@ fn multiple_payments_http(c: &mut Criterion) {
             create_account_on_node(node_a_http, b_on_a, "admin")
                 .await
                 .unwrap();
-
-            // Sleeping outside of block_on will result in spawned node tasks being
-            // suspended. Sleeping inside block_on will allow route propagation.
-            tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
         },
     );
 
@@ -340,6 +351,15 @@ fn multiple_payments_http(c: &mut Criterion) {
         }));
     let handle = std::thread::spawn(move || payment_notifications_shovel(ws_request, sender));
 
+    rt.block_on(async {
+        timeout(
+            Duration::from_secs(5),
+            node_readyness(&req_low, &mut receiver),
+        )
+        .await
+        .expect("nodes did not become ready in time")
+    });
+
     c.bench_function("process_payment_http_single_packet", |b| {
         b.iter(|| bench_fn(&mut rt, &req_low, &mut receiver, 2))
     });
@@ -350,5 +370,41 @@ fn multiple_payments_http(c: &mut Criterion) {
     drop(rt);
     handle.join().unwrap().unwrap();
 }
+
+// try until the routes have been propagated
+async fn node_readyness(
+    single_packet_req: &reqwest::RequestBuilder,
+    receiver: &mut tokio::sync::mpsc::Receiver<tungstenite::Message>,
+) {
+    loop {
+        let res = single_packet_req.try_clone().unwrap().send().await.unwrap();
+
+        if !res.status().is_success() {
+            tracing::warn!("still no success");
+            delay_for(Duration::from_millis(ROUTE_BROADCAST_INTERVAL)).await;
+            // this happens until the routes have been propagated
+            continue;
+        }
+
+        let msg = receiver
+            .recv()
+            .await
+            .expect("shoveller must still be alive")
+            .into_text();
+
+        tracing::info!("payment notification: {:?}", msg);
+        // there will be the connectionclose notification
+
+        let msg = receiver
+            .recv()
+            .await
+            .expect("shoveller must still be alive")
+            .into_text();
+
+        tracing::info!("connectionclose notification: {:?}", msg);
+        break;
+    }
+}
+
 criterion_group!(benches, multiple_payments_http, multiple_payments_btp);
 criterion_main!(benches);
