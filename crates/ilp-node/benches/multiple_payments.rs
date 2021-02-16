@@ -128,7 +128,7 @@ fn multiple_payments_btp(c: &mut Criterion) {
         .body(())
         .unwrap();
 
-    let (mut sender, mut receiver) = channel(BUFFER_SIZE);
+    let (sender, mut receiver) = channel(BUFFER_SIZE);
     let client = reqwest::Client::new();
     let req_low = client
         .post(&format!(
@@ -158,13 +158,7 @@ fn multiple_payments_btp(c: &mut Criterion) {
             "source_amount": 10000,
             "slippage": 0.025 // allow up to 2.5% slippage
         }));
-    let handle = std::thread::spawn(move || {
-        let mut payments_ws = client::connect(ws_request).unwrap().0;
-        while let Ok(message) = payments_ws.read_message() {
-            sender.try_send(message).unwrap();
-        }
-        payments_ws.close(None).unwrap();
-    });
+    let handle = std::thread::spawn(move || payment_notifications_shovel(ws_request, sender));
 
     c.bench_function("process_payment_btp_single_packet", |b| {
         b.iter(|| bench_fn(&mut rt, &req_low, &mut receiver, 2))
@@ -175,7 +169,21 @@ fn multiple_payments_btp(c: &mut Criterion) {
     });
 
     drop(rt);
-    handle.join().unwrap();
+    handle.join().unwrap().unwrap();
+}
+
+/// Shovel the payment notifications from the websocket to the channel until there's an error which
+/// is expected to happen because the runtime powering the ilp-node was dropped.
+fn payment_notifications_shovel(
+    ws_request: tungstenite::http::Request<()>,
+    mut sender: tokio::sync::mpsc::Sender<tungstenite::Message>,
+) -> Result<(), tungstenite::Error> {
+    let mut payments_ws = client::connect(ws_request)?.0;
+    while let Ok(message) = payments_ws.read_message() {
+        sender.try_send(message).unwrap();
+    }
+    // dont send anything special; assume that the connection already failed
+    payments_ws.close(None)
 }
 
 fn bench_fn(
@@ -304,7 +312,7 @@ fn multiple_payments_http(c: &mut Criterion) {
         .header("Authorization", "Bearer admin")
         .body(())
         .unwrap();
-    let (mut sender, mut receiver) = channel(BUFFER_SIZE);
+    let (sender, mut receiver) = channel(BUFFER_SIZE);
     let client = reqwest::Client::new();
     let req_low = client
         .post(&format!(
@@ -328,13 +336,7 @@ fn multiple_payments_http(c: &mut Criterion) {
             "source_amount": 10000,
             "slippage": 0.025 // allow up to 2.5% slippage
         }));
-    let handle = std::thread::spawn(move || {
-        let mut payments_ws = client::connect(ws_request).unwrap().0;
-        while let Ok(message) = payments_ws.read_message() {
-            sender.try_send(message).unwrap();
-        }
-        payments_ws.close(None).unwrap();
-    });
+    let handle = std::thread::spawn(move || payment_notifications_shovel(ws_request, sender));
 
     c.bench_function("process_payment_http_single_packet", |b| {
         b.iter(|| bench_fn(&mut rt, &req_low, &mut receiver, 2))
@@ -344,7 +346,7 @@ fn multiple_payments_http(c: &mut Criterion) {
     });
 
     drop(rt);
-    handle.join().unwrap();
+    handle.join().unwrap().unwrap();
 }
 criterion_group!(benches, multiple_payments_http, multiple_payments_btp);
 criterion_main!(benches);
