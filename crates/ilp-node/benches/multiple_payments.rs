@@ -1,3 +1,8 @@
+//! This file has two huge startup fns which each setup either btp or http communication between
+//! nodes. The only difference between the two are the account properties:
+//!  - ilp_over_{btp,http}_url
+//!  - ilp_over_{btp,http}_outgoing_token
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use ilp_node::InterledgerNode;
 use serde_json::{self, json};
