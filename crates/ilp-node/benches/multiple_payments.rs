@@ -180,7 +180,9 @@ fn payment_notifications_shovel(
 ) -> Result<(), tungstenite::Error> {
     let mut payments_ws = client::connect(ws_request)?.0;
     while let Ok(message) = payments_ws.read_message() {
-        sender.try_send(message).unwrap();
+        sender
+            .try_send(message)
+            .expect("failed to send message right away; is the BUFFER_SIZE correct?");
     }
     // dont send anything special; assume that the connection already failed
     payments_ws.close(None)
