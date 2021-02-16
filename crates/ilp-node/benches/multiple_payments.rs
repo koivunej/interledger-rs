@@ -110,6 +110,10 @@ fn multiple_payments_btp(c: &mut Criterion) {
             create_account_on_node(node_a_http, b_on_a, "admin")
                 .await
                 .unwrap();
+
+            // Sleeping outside of block_on will result in spawned node tasks being
+            // suspended. Sleeping inside block_on will allow route propagation.
+            tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
         },
     );
 
@@ -156,9 +160,6 @@ fn multiple_payments_btp(c: &mut Criterion) {
         }
         payments_ws.close(None).unwrap();
     });
-
-    // FIXME: same as in tests coincap and cryptocompare; we need to wait for the nodes to be up and routing
-    std::thread::sleep(std::time::Duration::from_millis(1000));
 
     c.bench_function("process_payment_btp_single_packet", |b| {
         b.iter(|| bench_fn(&mut rt, &req_low, &mut receiver, 2))
@@ -286,6 +287,10 @@ fn multiple_payments_http(c: &mut Criterion) {
             create_account_on_node(node_a_http, b_on_a, "admin")
                 .await
                 .unwrap();
+
+            // Sleeping outside of block_on will result in spawned node tasks being
+            // suspended. Sleeping inside block_on will allow route propagation.
+            tokio::time::delay_for(std::time::Duration::from_millis(100)).await;
         },
     );
 
@@ -325,9 +330,6 @@ fn multiple_payments_http(c: &mut Criterion) {
         }
         payments_ws.close(None).unwrap();
     });
-
-    // FIXME: same as in tests coincap and cryptocompare; we need to wait for the nodes to be up and routing
-    std::thread::sleep(std::time::Duration::from_millis(1000));
 
     c.bench_function("process_payment_http_single_packet", |b| {
         b.iter(|| bench_fn(&mut rt, &req_low, &mut receiver, 2))
