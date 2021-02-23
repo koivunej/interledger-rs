@@ -253,6 +253,10 @@ fn output_config_error(error: ConfigError, config_path: Option<&str>) {
 
     match &error {
         ConfigError::PathParse(_) => println!("Error in parsing config: {:?}", error),
+
+        // Note: configuring using a file called `ilp-node` is still allowed even though
+        // `cargo run ilp-node` from the workspace root ends here; it only happens if there was an
+        // error reading the file.
         _ if is_config_path_ilp_node => println!("Running ilp-node with `cargo run ilp-node` and \
                     `cargo run -p ilp-node` is deprecated. Please either execute the binary directly, or use \
                     `cargo run --bin ilp-node`"),
@@ -306,6 +310,8 @@ fn merge_read_in<R: Read>(mut input: R, config: &mut Config) -> Result<(), Confi
             let config_hash = FileFormat::Json
                 .parse(None, &buf_str)
                 .or_else(|_| FileFormat::Yaml.parse(None, &buf_str))
+                // FIXME: toml doesn't probably ever work with `config` and the others, see test
+                // fixture data
                 .or_else(|_| FileFormat::Toml.parse(None, &buf_str))
                 .ok();
             if let Some(config_hash) = config_hash {
@@ -446,24 +452,18 @@ mod tests {
         assert_eq!(expected, node);
     }
 
-    static ADDITIONAL_SECRETS: &[(&str, &[u8])] =
-        &[
-            ("json", b"{ \"secret_seed\": \"8852500887504328225458511465394229327394647958135038836332350604\" }"),
-
-            // toml is not supported; the used crate `config` will disregard top level value which
-            // is not a table, but even then, the keys underneath will have the "table." prefix and
-            // will not match the actual expected values
-            // ("toml", &b"[interledger]\nsecret_seed = \"8852500887504328225458511465394229327394647958135038836332350604\"\n"[..]),
-
-            ("yaml", b"secret_seed: \"8852500887504328225458511465394229327394647958135038836332350604\"\n"),
-        ];
+    static ADDITIONAL_SECRETS: &[(&str, &[u8])] = &[
+        ("json", b"{ \"secret_seed\": \"8852500887504328225458511465394229327394647958135038836332350604\" }"),
+        // toml is not supported: the used crate `config` will disregard top level value which
+        // is not a table, but even then, the keys underneath will have the "table." prefix and
+        // will not match the actual expected values
+        // ("toml", &b"[interledger]\nsecret_seed = \"8852500887504328225458511465394229327394647958135038836332350604\"\n"[..]),
+        ("yaml", b"secret_seed: \"8852500887504328225458511465394229327394647958135038836332350604\"\n"),
+    ];
 
     static ADDITIONAL_AUTH_TOKEN: &[(&str, &[u8])] = &[
         ("json", b"{ \"admin_auth_token\": \"foobar\" }"),
-        // toml is not supported; the used crate `config` will disregard top level value which
-        // is not a table, but even then, the keys underneath will have the "table." prefix and
-        // will not match the actual expected values
-        // ("toml", &b"[interledger]\nadmin_auth_token = \"foobar\"\n"[..]),
+        // toml is not supported; see ADDITIONAL_SECRETS
         ("yaml", b"admin_auth_token: \"foobar\"\n"),
     ];
 
