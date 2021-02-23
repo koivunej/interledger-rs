@@ -30,7 +30,7 @@ use std::{
 
 #[tokio::main]
 async fn main() {
-    let mut app = cmdline_configuration();
+    let app = cmdline_configuration();
     let args = std::env::args_os().collect::<Vec<_>>();
 
     let stdin = std::io::stdin();
