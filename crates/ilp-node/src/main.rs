@@ -171,11 +171,11 @@ fn cmdline_configuration() -> clap::App<'static, 'static> {
                 Note that CryptoCompare can also be used when the node is configured via a config file or stdin, because an API key must be provided to use that service."),
         Arg::with_name("exchange_rate.poll_interval")
             .long("exchange_rate.poll_interval")
-            .default_value("60000")
+            .default_value("60000") // also change ExchangeRateConfig::default_poll_interval
             .help("Interval, defined in milliseconds, on which the node will poll the exchange_rate.provider (if specified) for exchange rates."),
         Arg::with_name("exchange_rate.spread")
             .long("exchange_rate.spread")
-            .default_value("0")
+            .default_value("0") // also change ExchangeRateConfig::default_spread
             .help("Spread, as a fraction, to add on top of the exchange rate. \
                 This amount is kept as the node operator's profit, or may cover \
                 fluctuations in exchange rates.
@@ -434,6 +434,8 @@ mod tests {
 
         let node = load_configuration(app, args, additional).unwrap();
 
+        // this will start failing if the defaults for command line arguments do not match the
+        // serde(default) values for the fields.
         assert_eq!(expected, node);
     }
 }
