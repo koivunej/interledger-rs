@@ -413,6 +413,7 @@ mod tests {
 
     #[test]
     fn loads_configuration_from_cmdline() {
+        // as of writing this, there are two required parameters
         let args = [
             "ilp-node",
             "--admin_auth_token",
@@ -437,5 +438,85 @@ mod tests {
         // this will start failing if the defaults for command line arguments do not match the
         // serde(default) values for the fields.
         assert_eq!(expected, node);
+    }
+
+    static ADDITIONAL_SECRETS: &[(&str, &[u8])] =
+        &[
+            ("json", b"{ \"secret_seed\": \"8852500887504328225458511465394229327394647958135038836332350604\" }"),
+
+            // toml is not supported; the used crate `config` will disregard top level value which
+            // is not a table, but even then, the keys underneath will have the "table." prefix and
+            // will not match the actual expected values
+            // ("toml", &b"[interledger]\nsecret_seed = \"8852500887504328225458511465394229327394647958135038836332350604\"\n"[..]),
+
+            ("yaml", b"secret_seed: \"8852500887504328225458511465394229327394647958135038836332350604\"\n"),
+        ];
+
+    #[test]
+    fn loads_configuration_with_secret_over_stdin() {
+        let args = ["ilp-node", "--admin_auth_token", "foobar"]
+            .iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let app = cmdline_configuration();
+
+        for (format, additional) in ADDITIONAL_SECRETS {
+            let additional = Some(std::io::Cursor::new(additional));
+
+            let expected = serde_json::from_value::<InterledgerNode>(serde_json::json!({
+                "admin_auth_token": "foobar",
+                "secret_seed": "8852500887504328225458511465394229327394647958135038836332350604",
+            }))
+            .unwrap();
+
+            let node = load_configuration(app.clone(), args.clone(), additional)
+                .unwrap_or_else(|e| panic!("with {}: {:?}", format, e));
+            assert_eq!(expected, node, "secret_seed in {}", format);
+        }
+    }
+
+    #[test]
+    fn loads_configuration_from_cmdline_and_a_file() {
+        use std::io::Write;
+
+        for (format, additional) in ADDITIONAL_SECRETS {
+            let mut named_temp = tempfile::Builder::new()
+                .suffix(&format!(".{}", format))
+                .tempfile()
+                .unwrap();
+            named_temp.write_all(additional).unwrap();
+            named_temp.flush().unwrap();
+            let name = named_temp.path().to_str().expect(
+                "path wasn't UTF-8, but tempfile only uses alphanumeric random in the name",
+            );
+
+            let mut args = [
+                "ilp-node",
+                "--admin_auth_token",
+                "foobar",
+                "this_will_be_overridden_with_the_temp_config_file",
+            ]
+            .iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+
+            {
+                let last = args.last_mut().unwrap();
+                last.clear();
+                last.push(name);
+            }
+
+            let app = cmdline_configuration();
+            let additional = Option::<std::io::Empty>::None;
+            let expected = serde_json::from_value::<InterledgerNode>(serde_json::json!({
+                "admin_auth_token": "foobar",
+                "secret_seed": "8852500887504328225458511465394229327394647958135038836332350604",
+            }))
+            .unwrap();
+
+            let node = load_configuration(app, args, additional).unwrap();
+
+            assert_eq!(expected, node);
+        }
     }
 }
