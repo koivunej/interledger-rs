@@ -146,8 +146,10 @@ async fn main() {
                 many settlements."),
         ]);
 
+    let args = std::env::args_os().collect::<Vec<_>>();
+
     let mut config = get_env_config("ilp");
-    if let Ok((path, config_file)) = precheck_arguments(app.clone()) {
+    if let Ok((path, config_file)) = precheck_arguments(app.clone(), &args) {
         if !is_fd_tty(0) {
             if let Err(error) = merge_std_in(&mut config) {
                 output_config_error(error, None);
@@ -214,10 +216,13 @@ fn output_config_error(error: ConfigError, config_path: Option<&str>) {
 }
 
 // returns (subcommand paths, config path)
-fn precheck_arguments(mut app: App) -> Result<(Vec<String>, Option<String>), ()> {
+fn precheck_arguments(
+    mut app: App,
+    args: &[OsString],
+) -> Result<(Vec<String>, Option<String>), ()> {
     // not to cause `required fields error`.
     reset_required(&mut app);
-    let matches = app.get_matches_safe();
+    let matches = app.get_matches_from_safe_borrow(args.iter());
     if matches.is_err() {
         // if app could not get any appropriate match, just return not to show help etc.
         return Err(());
