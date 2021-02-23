@@ -248,9 +248,17 @@ fn merge_config_file(config_path: &str, config: &mut Config) -> Result<(), Confi
 
 fn merge_std_in(config: &mut Config) -> Result<(), ConfigError> {
     let stdin = std::io::stdin();
-    let mut stdin_lock = stdin.lock();
+    let stdin_lock = stdin.lock();
+    merge_bufread_in(stdin_lock, config)
+}
+
+fn merge_bufread_in<R: std::io::BufRead>(
+    mut input: R,
+    config: &mut Config,
+) -> Result<(), ConfigError> {
     let mut buf = Vec::new();
-    if let Ok(_read) = stdin_lock.read_to_end(&mut buf) {
+
+    if let Ok(_read) = input.read_to_end(&mut buf) {
         if let Ok(buf_str) = String::from_utf8(buf) {
             let config_hash = FileFormat::Json
                 .parse(None, &buf_str)
