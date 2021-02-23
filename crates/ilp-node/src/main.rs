@@ -148,28 +148,25 @@ async fn main() {
 
     let args = std::env::args_os().collect::<Vec<_>>();
 
-    let mut config = get_env_config("ilp");
-    if let Ok((path, config_file)) = precheck_arguments(app.clone(), &args) {
-        if !is_fd_tty(0) {
-            if let Err(error) = merge_std_in(&mut config) {
-                output_config_error(error, None);
-                return;
-            };
+    // FIXME: missing: the optionally used stdin
+    let node = match load_configuration(app, args) {
+        Ok(node) => node,
+        Err(BadConfig::BadArguments(e)) => {
+            e.exit();
         }
-        if let Some(ref config_path) = config_file {
-            if let Err(error) = merge_config_file(config_path, &mut config) {
-                output_config_error(error, Some(config_path));
-                return;
-            };
+        Err(BadConfig::MergingStdinFailed(e)) => {
+            output_config_error(e, None);
+            std::process::exit(0);
         }
-        set_app_env(&config, &mut app, &path, path.len());
-    }
-    let matches = app.get_matches();
-    merge_args(&mut config, &matches);
-
-    let node = config
-        .try_into::<InterledgerNode>()
-        .expect("Could not parse provided configuration options into an Interledger Node config");
+        Err(BadConfig::MergingConfigFileFailed(path, e)) => {
+            output_config_error(e, Some(path.as_ref()));
+            std::process::exit(0);
+        }
+        Err(BadConfig::ConversionFailed(e)) => {
+            // this used to be an expect
+            panic!("Could not parse provided configuration options into an Interledger Node config: {}", e);
+        }
+    };
 
     cfg_if! {
         if #[cfg(feature = "monitoring")] {
@@ -198,6 +195,37 @@ async fn main() {
     // Add a future which is always pending. This will ensure main does not exist
     // TODO: Is there a better way of doing this?
     futures::future::pending().await
+}
+
+enum BadConfig {
+    BadArguments(clap::Error),
+    MergingStdinFailed(config::ConfigError),
+    MergingConfigFileFailed(String, config::ConfigError),
+    ConversionFailed(config::ConfigError),
+}
+
+fn load_configuration(
+    mut app: App<'_, '_>,
+    args: Vec<OsString>,
+) -> Result<InterledgerNode, BadConfig> {
+    let mut config = get_env_config("ilp");
+    if let Ok((path, config_file)) = precheck_arguments(app.clone(), &args) {
+        if !is_fd_tty(0) {
+            merge_std_in(&mut config).map_err(BadConfig::MergingStdinFailed)?;
+        }
+        if let Some(config_path) = config_file {
+            merge_config_file(&config_path, &mut config)
+                .map_err(|e| BadConfig::MergingConfigFileFailed(config_path, e))?;
+        }
+        set_app_env(&config, &mut app, &path, path.len());
+    }
+
+    let matches = app
+        .get_matches_from_safe(args.iter())
+        .map_err(BadConfig::BadArguments)?;
+    merge_args(&mut config, &matches);
+
+    config.try_into().map_err(BadConfig::ConversionFailed)
 }
 
 fn output_config_error(error: ConfigError, config_path: Option<&str>) {
