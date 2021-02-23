@@ -312,9 +312,8 @@ fn merge_read_in<R: Read>(mut input: R, config: &mut Config) -> Result<(), Confi
                 .or_else(|_| FileFormat::Yaml.parse(None, &buf_str))
                 // FIXME: toml doesn't probably ever work with `config` and the others, see test
                 // fixture data
-                .or_else(|_| FileFormat::Toml.parse(None, &buf_str))
-                .ok();
-            if let Some(config_hash) = config_hash {
+                .or_else(|_| FileFormat::Toml.parse(None, &buf_str));
+            if let Ok(config_hash) = config_hash {
                 // if the key is not defined in the given config already, set it to the config
                 // because the original values override the ones from the stdin
                 for (k, v) in config_hash {
