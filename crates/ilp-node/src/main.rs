@@ -211,6 +211,7 @@ fn cmdline_configuration() -> clap::App<'static, 'static> {
         ])
 }
 
+#[derive(Debug)]
 enum BadConfig {
     BadArguments(clap::Error),
     MergingStdinFailed(config::ConfigError),
@@ -407,4 +408,36 @@ fn is_fd_tty(file_descriptor: c_int) -> bool {
         result = isatty(file_descriptor);
     }
     result == 1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{cmdline_configuration, load_configuration, InterledgerNode};
+    use std::ffi::OsString;
+
+    #[test]
+    fn loads_configuration_from_cmdline() {
+        let args = [
+            "ilp-node",
+            "--admin_auth_token",
+            "foobar",
+            "--secret_seed",
+            "8852500887504328225458511465394229327394647958135038836332350604",
+        ]
+        .iter()
+        .map(OsString::from)
+        .collect();
+        let app = cmdline_configuration();
+        let additional = Option::<std::io::Empty>::None;
+
+        let expected = serde_json::from_value::<InterledgerNode>(serde_json::json!({
+            "admin_auth_token": "foobar",
+            "secret_seed": "8852500887504328225458511465394229327394647958135038836332350604",
+        }))
+        .unwrap();
+
+        let node = load_configuration(app, args, additional).unwrap();
+
+        assert_eq!(expected, node);
+    }
 }

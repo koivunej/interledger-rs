@@ -144,7 +144,7 @@ where
 }
 
 /// Configuration for calculating exchange rates between various pairs.
-#[derive(Deserialize, Clone, Default)]
+#[derive(Deserialize, Clone, Default, PartialEq, Debug)]
 pub struct ExchangeRateConfig {
     /// Interval, defined in milliseconds, on which the node will poll the exchange rate provider.
     /// Defaults to 60000ms (60 seconds).
@@ -184,7 +184,7 @@ impl ExchangeRateConfig {
 /// a connector, and a management API.
 /// Will connect to the database at the given URL; see the crate features defined in
 /// Cargo.toml to see a list of all supported stores.
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, PartialEq, Debug)]
 pub struct InterledgerNode {
     /// ILP address of the node
     #[serde(deserialize_with = "deserialize_optional_address")]
