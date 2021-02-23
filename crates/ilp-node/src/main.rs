@@ -410,6 +410,7 @@ fn is_fd_tty(file_descriptor: c_int) -> bool {
 mod tests {
     use super::{cmdline_configuration, load_configuration, InterledgerNode};
     use std::ffi::OsString;
+    use std::io::Write;
 
     #[test]
     fn loads_configuration_from_cmdline() {
@@ -452,6 +453,15 @@ mod tests {
             ("yaml", b"secret_seed: \"8852500887504328225458511465394229327394647958135038836332350604\"\n"),
         ];
 
+    static ADDITIONAL_AUTH_TOKEN: &[(&str, &[u8])] = &[
+        ("json", b"{ \"admin_auth_token\": \"foobar\" }"),
+        // toml is not supported; the used crate `config` will disregard top level value which
+        // is not a table, but even then, the keys underneath will have the "table." prefix and
+        // will not match the actual expected values
+        // ("toml", &b"[interledger]\nadmin_auth_token = \"foobar\"\n"[..]),
+        ("yaml", b"admin_auth_token: \"foobar\"\n"),
+    ];
+
     #[test]
     fn loads_configuration_with_secret_over_stdin() {
         let args = ["ilp-node", "--admin_auth_token", "foobar"]
@@ -477,8 +487,6 @@ mod tests {
 
     #[test]
     fn loads_configuration_from_cmdline_and_a_file() {
-        use std::io::Write;
-
         for (format, additional) in ADDITIONAL_SECRETS {
             let mut named_temp = tempfile::Builder::new()
                 .suffix(&format!(".{}", format))
@@ -508,6 +516,49 @@ mod tests {
 
             let app = cmdline_configuration();
             let additional = Option::<std::io::Empty>::None;
+            let expected = serde_json::from_value::<InterledgerNode>(serde_json::json!({
+                "admin_auth_token": "foobar",
+                "secret_seed": "8852500887504328225458511465394229327394647958135038836332350604",
+            }))
+            .unwrap();
+
+            let node = load_configuration(app, args, additional).unwrap();
+
+            assert_eq!(expected, node);
+        }
+    }
+
+    #[test]
+    fn loads_configuration_from_cmdline_and_a_file_and_stdin() {
+        let fixtures = ADDITIONAL_SECRETS.iter().zip(ADDITIONAL_AUTH_TOKEN.iter());
+
+        for ((format, secret), (_, token)) in fixtures {
+            let mut named_temp = tempfile::Builder::new()
+                .suffix(&format!(".{}", format))
+                .tempfile()
+                .unwrap();
+            named_temp.write_all(secret).unwrap();
+            named_temp.flush().unwrap();
+            let name = named_temp.path().to_str().expect(
+                "path wasn't UTF-8, but tempfile only uses alphanumeric random in the name",
+            );
+
+            let mut args = [
+                "ilp-node",
+                "this_will_be_overridden_with_the_temp_config_file",
+            ]
+            .iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+
+            {
+                let last = args.last_mut().unwrap();
+                last.clear();
+                last.push(name);
+            }
+
+            let app = cmdline_configuration();
+            let additional = Some(std::io::Cursor::new(token));
             let expected = serde_json::from_value::<InterledgerNode>(serde_json::json!({
                 "admin_auth_token": "foobar",
                 "secret_seed": "8852500887504328225458511465394229327394647958135038836332350604",
