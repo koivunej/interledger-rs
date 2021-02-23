@@ -171,11 +171,11 @@ fn cmdline_configuration() -> clap::App<'static, 'static> {
                 Note that CryptoCompare can also be used when the node is configured via a config file or stdin, because an API key must be provided to use that service."),
         Arg::with_name("exchange_rate.poll_interval")
             .long("exchange_rate.poll_interval")
-            .default_value("60000")
+            .default_value("60000") // also change ExchangeRateConfig::default_poll_interval
             .help("Interval, defined in milliseconds, on which the node will poll the exchange_rate.provider (if specified) for exchange rates."),
         Arg::with_name("exchange_rate.spread")
             .long("exchange_rate.spread")
-            .default_value("0")
+            .default_value("0") // also change ExchangeRateConfig::default_spread
             .help("Spread, as a fraction, to add on top of the exchange rate. \
                 This amount is kept as the node operator's profit, or may cover \
                 fluctuations in exchange rates.
@@ -211,6 +211,7 @@ fn cmdline_configuration() -> clap::App<'static, 'static> {
         ])
 }
 
+#[derive(Debug)]
 enum BadConfig {
     BadArguments(clap::Error),
     MergingStdinFailed(config::ConfigError),
@@ -403,4 +404,38 @@ fn is_fd_tty(file_descriptor: c_int) -> bool {
         result = isatty(file_descriptor);
     }
     result == 1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{cmdline_configuration, load_configuration, InterledgerNode};
+    use std::ffi::OsString;
+
+    #[test]
+    fn loads_configuration_from_cmdline() {
+        let args = [
+            "ilp-node",
+            "--admin_auth_token",
+            "foobar",
+            "--secret_seed",
+            "8852500887504328225458511465394229327394647958135038836332350604",
+        ]
+        .iter()
+        .map(OsString::from)
+        .collect();
+        let app = cmdline_configuration();
+        let additional = Option::<std::io::Empty>::None;
+
+        let expected = serde_json::from_value::<InterledgerNode>(serde_json::json!({
+            "admin_auth_token": "foobar",
+            "secret_seed": "8852500887504328225458511465394229327394647958135038836332350604",
+        }))
+        .unwrap();
+
+        let node = load_configuration(app, args, additional).unwrap();
+
+        // this will start failing if the defaults for command line arguments do not match the
+        // serde(default) values for the fields.
+        assert_eq!(expected, node);
+    }
 }
