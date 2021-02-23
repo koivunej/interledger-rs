@@ -234,7 +234,7 @@ fn load_configuration<R: std::io::BufRead>(
     }
 
     let matches = app
-        .get_matches_from_safe_borrow(args.iter())
+        .get_matches_from_safe(args.iter())
         .map_err(BadConfig::BadArguments)?;
 
     merge_args(&mut config, &matches);
