@@ -30,6 +30,70 @@ use std::{
 
 #[tokio::main]
 async fn main() {
+    let app = cmdline_configuration();
+    let args = std::env::args_os().collect::<Vec<_>>();
+
+    let stdin = std::io::stdin();
+
+    let additional_config = if !is_fd_tty(0) {
+        // this might be read by load_configuration, depending on the presence of a config file
+        let lock = stdin.lock();
+        Some(lock)
+    } else {
+        None
+    };
+
+    let node = match load_configuration(app, args, additional_config) {
+        Ok(node) => node,
+        Err(BadConfig::BadArguments(e)) => {
+            e.exit();
+        }
+        Err(BadConfig::MergingStdinFailed(e)) => {
+            output_config_error(e, None);
+            std::process::exit(0);
+        }
+        Err(BadConfig::MergingConfigFileFailed(path, e)) => {
+            output_config_error(e, Some(path.as_ref()));
+            std::process::exit(0);
+        }
+        Err(BadConfig::ConversionFailed(e)) => {
+            // this used to be an expect
+            panic!("Could not parse provided configuration options into an Interledger Node config: {}", e);
+        }
+    };
+
+    drop(stdin);
+
+    cfg_if! {
+        if #[cfg(feature = "monitoring")] {
+            let mut log_writer = LogWriter::default();
+
+            let (nb_log_writer, _guard) = tracing_appender::non_blocking(log_writer.clone());
+
+            let tracing_builder = Subscriber::builder()
+                .with_timer(ChronoUtc::rfc3339())
+                .with_env_filter(EnvFilter::from_default_env())
+                .with_writer(nb_log_writer)
+                .with_filter_reloading();
+
+            log_writer.handle = Some(tracing_builder.reload_handle());
+
+            let _ = tracing_builder.try_init();
+
+            let log_writer = Some(log_writer);
+        } else {
+            let log_writer = None;
+        }
+    }
+
+    node.serve(log_writer.clone()).await.unwrap();
+
+    // Add a future which is always pending. This will ensure main does not exist
+    // TODO: Is there a better way of doing this?
+    futures::future::pending().await
+}
+
+fn cmdline_configuration() -> clap::App<'static, 'static> {
     // The naming convention of arguments
     //
     // - URL vs URI
@@ -45,7 +109,7 @@ async fn main() {
     //     - `http_bind_address`
     // - Addresses to which other services are bound
     //     - `xxx_bind_address`
-    let mut app = App::new("ilp-node")
+    App::new("ilp-node")
         .about("Run an Interledger.rs node (sender, connector, receiver bundle)")
         .version(crate_version!())
         // TODO remove this line once this issue is solved:
@@ -144,68 +208,7 @@ async fn main() {
                 Note: In a cluster configuration where multiple nodes share a \
                 single database and database accounts, using this can result in \
                 many settlements."),
-        ]);
-
-    let args = std::env::args_os().collect::<Vec<_>>();
-
-    let stdin = std::io::stdin();
-
-    let additional_config = if !is_fd_tty(0) {
-        // this might be read by load_configuration, depending on the presence of a config file
-        let lock = stdin.lock();
-        Some(lock)
-    } else {
-        None
-    };
-
-    let node = match load_configuration(app, args, additional_config) {
-        Ok(node) => node,
-        Err(BadConfig::BadArguments(e)) => {
-            e.exit();
-        }
-        Err(BadConfig::MergingStdinFailed(e)) => {
-            output_config_error(e, None);
-            std::process::exit(0);
-        }
-        Err(BadConfig::MergingConfigFileFailed(path, e)) => {
-            output_config_error(e, Some(path.as_ref()));
-            std::process::exit(0);
-        }
-        Err(BadConfig::ConversionFailed(e)) => {
-            // this used to be an expect
-            panic!("Could not parse provided configuration options into an Interledger Node config: {}", e);
-        }
-    };
-
-    drop(stdin);
-
-    cfg_if! {
-        if #[cfg(feature = "monitoring")] {
-            let mut log_writer = LogWriter::default();
-
-            let (nb_log_writer, _guard) = tracing_appender::non_blocking(log_writer.clone());
-
-            let tracing_builder = Subscriber::builder()
-                .with_timer(ChronoUtc::rfc3339())
-                .with_env_filter(EnvFilter::from_default_env())
-                .with_writer(nb_log_writer)
-                .with_filter_reloading();
-
-            log_writer.handle = Some(tracing_builder.reload_handle());
-
-            let _ = tracing_builder.try_init();
-
-            let log_writer = Some(log_writer);
-        } else {
-            let log_writer = None;
-        }
-    }
-
-    node.serve(log_writer.clone()).await.unwrap();
-
-    // Add a future which is always pending. This will ensure main does not exist
-    // TODO: Is there a better way of doing this?
-    futures::future::pending().await
+        ])
 }
 
 enum BadConfig {
