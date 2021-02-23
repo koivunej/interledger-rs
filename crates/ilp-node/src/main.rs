@@ -165,6 +165,10 @@ async fn main() {
     let matches = app.get_matches();
     merge_args(&mut config, &matches);
 
+    let node = config
+        .try_into::<InterledgerNode>()
+        .expect("Could not parse provided configuration options into an Interledger Node config");
+
     cfg_if! {
         if #[cfg(feature = "monitoring")] {
             let mut log_writer = LogWriter::default();
@@ -187,9 +191,6 @@ async fn main() {
         }
     }
 
-    let node = config
-        .try_into::<InterledgerNode>()
-        .expect("Could not parse provided configuration options into an Interledger Node config");
     node.serve(log_writer.clone()).await.unwrap();
 
     // Add a future which is always pending. This will ensure main does not exist
