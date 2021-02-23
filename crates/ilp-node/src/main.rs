@@ -148,8 +148,17 @@ async fn main() {
 
     let args = std::env::args_os().collect::<Vec<_>>();
 
-    // FIXME: missing: the optionally used stdin
-    let node = match load_configuration(app, args) {
+    let stdin = std::io::stdin();
+
+    let additional_config = if !is_fd_tty(0) {
+        // this might be read by load_configuration, depending on the presence of a config file
+        let lock = stdin.lock();
+        Some(lock)
+    } else {
+        None
+    };
+
+    let node = match load_configuration(app, args, additional_config) {
         Ok(node) => node,
         Err(BadConfig::BadArguments(e)) => {
             e.exit();
@@ -167,6 +176,8 @@ async fn main() {
             panic!("Could not parse provided configuration options into an Interledger Node config: {}", e);
         }
     };
+
+    drop(stdin);
 
     cfg_if! {
         if #[cfg(feature = "monitoring")] {
@@ -204,14 +215,15 @@ enum BadConfig {
     ConversionFailed(config::ConfigError),
 }
 
-fn load_configuration(
+fn load_configuration<R: Read>(
     mut app: App<'_, '_>,
     args: Vec<OsString>,
+    additional_config: Option<R>,
 ) -> Result<InterledgerNode, BadConfig> {
     let mut config = get_env_config("ilp");
     if let Ok((path, config_file)) = precheck_arguments(app.clone(), &args) {
-        if !is_fd_tty(0) {
-            merge_std_in(&mut config).map_err(BadConfig::MergingStdinFailed)?;
+        if let Some(additional_config) = additional_config {
+            merge_read_in(additional_config, &mut config).map_err(BadConfig::MergingStdinFailed)?;
         }
         if let Some(config_path) = config_file {
             merge_config_file(&config_path, &mut config)
@@ -223,6 +235,7 @@ fn load_configuration(
     let matches = app
         .get_matches_from_safe(args.iter())
         .map_err(BadConfig::BadArguments)?;
+
     merge_args(&mut config, &matches);
 
     config.try_into().map_err(BadConfig::ConversionFailed)
@@ -279,16 +292,7 @@ fn merge_config_file(config_path: &str, config: &mut Config) -> Result<(), Confi
     Ok(())
 }
 
-fn merge_std_in(config: &mut Config) -> Result<(), ConfigError> {
-    let stdin = std::io::stdin();
-    let stdin_lock = stdin.lock();
-    merge_bufread_in(stdin_lock, config)
-}
-
-fn merge_bufread_in<R: std::io::BufRead>(
-    mut input: R,
-    config: &mut Config,
-) -> Result<(), ConfigError> {
+fn merge_read_in<R: Read>(mut input: R, config: &mut Config) -> Result<(), ConfigError> {
     let mut buf = Vec::new();
 
     if let Ok(_read) = input.read_to_end(&mut buf) {
