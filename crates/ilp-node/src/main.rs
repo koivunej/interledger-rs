@@ -219,7 +219,7 @@ enum BadConfig {
     ConversionFailed(config::ConfigError),
 }
 
-fn load_configuration<R: std::io::BufRead>(
+fn load_configuration<R: Read>(
     mut app: App<'_, '_>,
     args: Vec<OsString>,
     additional_config: Option<R>,
@@ -227,8 +227,7 @@ fn load_configuration<R: std::io::BufRead>(
     let mut config = get_env_config("ilp");
     if let Ok((path, config_file)) = precheck_arguments(app.clone(), &args) {
         if let Some(additional_config) = additional_config {
-            merge_bufread_in(additional_config, &mut config)
-                .map_err(BadConfig::MergingStdinFailed)?;
+            merge_read_in(additional_config, &mut config).map_err(BadConfig::MergingStdinFailed)?;
         }
         if let Some(config_path) = config_file {
             merge_config_file(&config_path, &mut config)
@@ -297,10 +296,7 @@ fn merge_config_file(config_path: &str, config: &mut Config) -> Result<(), Confi
     Ok(())
 }
 
-fn merge_bufread_in<R: std::io::BufRead>(
-    mut input: R,
-    config: &mut Config,
-) -> Result<(), ConfigError> {
+fn merge_read_in<R: Read>(mut input: R, config: &mut Config) -> Result<(), ConfigError> {
     let mut buf = Vec::new();
 
     if let Ok(_read) = input.read_to_end(&mut buf) {
