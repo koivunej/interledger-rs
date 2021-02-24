@@ -288,6 +288,8 @@ fn merge_config_file(config_path: &str, config: &mut Config) -> Result<(), Confi
     // if the key is not defined in the given config already, set it to the config
     // because the original values override the ones from the config file
     for (k, v) in file_config {
+        // Note: the error from `Config::get_str` is for "value was not found" or "couldn't be
+        // turned into a string", not "the string representation is invalid for this key".
         if config.get_str(&k).is_err() {
             config.set(&k, v)?;
         }
@@ -323,13 +325,16 @@ fn merge_read_in<R: Read>(mut input: R, config: &mut Config) -> Result<(), Confi
 fn merge_args(config: &mut Config, matches: &ArgMatches) {
     for (key, value) in &matches.args {
         if config.get_str(key).is_ok() {
+            // Note: this means the key already pointed to a string convertable value, not that it
+            // was valid for the property it configures.
             continue;
         }
         if value.vals.is_empty() {
             // flag
+            // FIXME: this is never hit in the tests, unsure what it is for
             config.set(key, Value::new(None, true)).unwrap();
         } else {
-            // value
+            // merge the cmdline value to the config
             config
                 .set(key, Value::new(None, value.vals[0].to_str().unwrap()))
                 .unwrap();
@@ -408,7 +413,7 @@ fn is_fd_tty(file_descriptor: c_int) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{cmdline_configuration, load_configuration, InterledgerNode};
+    use super::{cmdline_configuration, load_configuration, BadConfig, InterledgerNode};
     use std::ffi::OsString;
     use std::io::Write;
 
@@ -632,5 +637,65 @@ mod tests {
         let node = load_configuration(app, args, additional).unwrap();
 
         assert_eq!(expected, node);
+    }
+
+    #[test]
+    fn invalid_preceding_values_error_out() {
+        // command line is the only place where a valid secret_seed is provided, but the presence
+        // rules force an error at the stdin or config file. the old implementation looked like it
+        // allowed replacing invalid values but not in practice.
+        let stdin = &b"{ \"secret_seed\": \"AAA\" }\n";
+
+        let mut args = [
+            "ilp-node",
+            "--admin_auth_token",
+            "foobar",
+            "--secret_seed",
+            "0000000000000000000000000000000000000000000000000000000000000006",
+            "this_will_be_replaced_with_a_path_to_config_file",
+        ]
+        .iter()
+        .map(OsString::from)
+        .collect::<Vec<_>>();
+
+        let mut named_temp = tempfile::Builder::new()
+            .suffix(&".json")
+            .tempfile()
+            .unwrap();
+
+        named_temp
+            .write_all(&b"{\"secret_seed\":\"non_hex_this_is_invalid\"}\n"[..])
+            .unwrap();
+        named_temp.flush().unwrap();
+
+        {
+            let last = args.last_mut().unwrap();
+            last.clear();
+            last.push(named_temp.path());
+        }
+
+        let app = cmdline_configuration("anything");
+        let additional = Some(std::io::Cursor::new(stdin));
+        let bad = load_configuration(app, args.clone(), additional).unwrap_err();
+
+        // the value from stdin is retained until the final deserialization (the file or cmdline
+        // values are ignored as the stdin already contained a string convertable value).
+        assert!(
+            matches!(bad, BadConfig::ConversionFailed(_)),
+            "unexpected: {:?}",
+            bad
+        );
+
+        let app = cmdline_configuration("anything");
+        let additional = Option::<std::io::Empty>::None;
+        let bad = load_configuration(app, args, additional).unwrap_err();
+
+        // same here, but the config file value is retained and cmdline value is ignored, for the
+        // same reasons.
+        assert!(
+            matches!(bad, BadConfig::ConversionFailed(_)),
+            "unexpected: {:?}",
+            bad
+        );
     }
 }
