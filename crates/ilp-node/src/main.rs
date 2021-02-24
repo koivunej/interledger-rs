@@ -570,4 +570,67 @@ mod tests {
             assert_eq!(expected, node);
         }
     }
+
+    /// Ensures the previous precedence is followed, which has been:
+    ///
+    /// 1. stdin input
+    /// 2. config file
+    /// 3. cmdline
+    #[test]
+    fn config_precedence() {
+        // stdin json is the ...4 version, ...5 is on config file and ...6 is on cmdline
+        let json = ADDITIONAL_SECRETS[0].1;
+
+        let mut args = [
+            "ilp-node",
+            "--admin_auth_token",
+            "foobar",
+            "--secret_seed",
+            "0000000000000000000000000000000000000000000000000000000000000006",
+            "this_will_be_replaced_with_a_path_to_config_file",
+        ]
+        .iter()
+        .map(OsString::from)
+        .collect::<Vec<_>>();
+
+        let mut named_temp = tempfile::Builder::new()
+            .suffix(&".json")
+            .tempfile()
+            .unwrap();
+
+        named_temp.write_all(&b"{\"secret_seed\":\"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5\"}\n"[..]).unwrap();
+        named_temp.flush().unwrap();
+
+        {
+            let last = args.last_mut().unwrap();
+            last.clear();
+            last.push(named_temp.path());
+        }
+
+        let app = cmdline_configuration("anything");
+        let additional = Some(std::io::Cursor::new(json));
+        let expected = serde_json::from_value::<InterledgerNode>(serde_json::json!({
+            "admin_auth_token": "foobar",
+            "secret_seed": "8852500887504328225458511465394229327394647958135038836332350604",
+        }))
+        .unwrap();
+
+        let node = load_configuration(app, args.clone(), additional).unwrap();
+
+        assert_eq!(expected, node);
+
+        // now without the stdin the config file should prevail
+
+        let app = cmdline_configuration("anything");
+        let additional = Option::<std::io::Empty>::None;
+        let expected = serde_json::from_value::<InterledgerNode>(serde_json::json!({
+            "admin_auth_token": "foobar",
+            "secret_seed": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5",
+        }))
+        .unwrap();
+
+        let node = load_configuration(app, args, additional).unwrap();
+
+        assert_eq!(expected, node);
+    }
 }
