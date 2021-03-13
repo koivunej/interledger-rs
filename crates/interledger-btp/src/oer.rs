@@ -14,7 +14,9 @@ pub trait ReadOerExt: Read + ReadBytesExt + Debug {
         let length = self.read_var_octet_string_length()?;
 
         // TODO handle if the length is too long
-        let mut buf = Vec::with_capacity(length as usize);
+        // FIXME: 1kB is sort of a stopgap to guard against sending u64::MAX as the length and stopping
+        // the frame there, not sure if good enough.
+        let mut buf = Vec::with_capacity(length.min(1024) as usize);
         self.take(length).read_to_end(&mut buf)?;
         Ok(buf)
     }
