@@ -48,6 +48,29 @@ pub trait BtpStore {
     async fn get_btp_outgoing_accounts(&self) -> Result<Vec<Self::Account>, BtpStoreError>;
 }
 
+#[cfg(fuzzing)]
+pub mod fuzzing {
+    pub use crate::errors::ParseError;
+    pub use crate::packet::{BtpPacket, Serializable};
+
+    pub fn roundtrip_btppacket(data: &[u8]) {
+        if let Ok(x) = BtpPacket::from_bytes(data) {
+            // at the moment the parser accepts garbage at the end; it probably should not, see
+            // packet::tests::fuzzed::fuzz_4 for an example.
+            let out = x.to_bytes();
+
+            assert_eq!(data, out);
+        }
+    }
+
+    /// Used for comparing two versions of this crate
+    pub fn verbose_roundtrip(data: &[u8]) -> Result<(BtpPacket, Vec<u8>), ParseError> {
+        let p = BtpPacket::from_bytes(data)?;
+        let out = p.to_bytes();
+        Ok((p, out))
+    }
+}
+
 #[cfg(test)]
 mod client_server {
     use super::*;
