@@ -18,6 +18,14 @@ pub trait ReadOerExt: Read + ReadBytesExt + Debug {
         // the frame there, not sure if good enough.
         let mut buf = Vec::with_capacity(length.min(1024) as usize);
         self.take(length).read_to_end(&mut buf)?;
+
+        if buf.len() as u64 != length {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "too short variable length octet string",
+            ));
+        }
+
         Ok(buf)
     }
 
