@@ -68,6 +68,13 @@ pub trait ReadOerExt: Read + ReadBytesExt + Debug {
             len = 1;
         }
 
+        if len > 8 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "varuint too large",
+            ));
+        }
+
         self.read_uint::<BigEndian>(len)
     }
 }
