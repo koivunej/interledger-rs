@@ -13,7 +13,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 afl = "*"
 
-prev = { package = "interledger-packet", git = "https://github.com/koivunej/interledger-rs.git", rev = "bd5386756caab72f53f3fda73219bf7362d00bdf" }
+prev = { package = "interledger-packet", git = "https://github.com/koivunej/interledger-rs.git", branch = "fuzzable_bytes04" }
 bytes04 = { package = "bytes", version = "0.4" }
 bytes = { package = "bytes", version = "0.5" }
 hex = { version = "*" }

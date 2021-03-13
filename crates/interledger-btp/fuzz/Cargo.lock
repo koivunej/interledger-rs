@@ -561,16 +561,16 @@ dependencies = [
 [[package]]
 name = "interledger-btp"
 version = "1.0.0"
-source = "git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf#bd5386756caab72f53f3fda73219bf7362d00bdf"
+source = "git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04#7f22e30379031420bb2b8acbdc3939294c7e744e"
 dependencies = [
  "async-trait",
  "byteorder",
  "bytes 0.4.12",
  "chrono",
  "futures",
- "interledger-errors 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf)",
- "interledger-packet 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf)",
- "interledger-service 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf)",
+ "interledger-errors 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
+ "interledger-packet 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
+ "interledger-service 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
  "num-bigint",
  "once_cell",
  "parking_lot",
@@ -596,7 +596,7 @@ dependencies = [
  "bytes 0.5.6",
  "hex",
  "interledger-btp 1.0.0",
- "interledger-btp 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf)",
+ "interledger-btp 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
  "libfuzzer-sys",
 ]
 
@@ -620,11 +620,11 @@ dependencies = [
 [[package]]
 name = "interledger-errors"
 version = "1.0.0"
-source = "git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf#bd5386756caab72f53f3fda73219bf7362d00bdf"
+source = "git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04#7f22e30379031420bb2b8acbdc3939294c7e744e"
 dependencies = [
  "chrono",
  "http",
- "interledger-packet 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf)",
+ "interledger-packet 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
  "once_cell",
  "regex",
  "serde",
@@ -650,7 +650,7 @@ dependencies = [
 [[package]]
 name = "interledger-packet"
 version = "1.0.0"
-source = "git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf#bd5386756caab72f53f3fda73219bf7362d00bdf"
+source = "git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04#7f22e30379031420bb2b8acbdc3939294c7e744e"
 dependencies = [
  "byteorder",
  "bytes 0.4.12",
@@ -680,12 +680,12 @@ dependencies = [
 [[package]]
 name = "interledger-service"
 version = "1.0.0"
-source = "git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf#bd5386756caab72f53f3fda73219bf7362d00bdf"
+source = "git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04#7f22e30379031420bb2b8acbdc3939294c7e744e"
 dependencies = [
  "async-trait",
  "futures",
- "interledger-errors 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf)",
- "interledger-packet 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?rev=bd5386756caab72f53f3fda73219bf7362d00bdf)",
+ "interledger-errors 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
+ "interledger-packet 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
  "once_cell",
  "regex",
  "serde",
