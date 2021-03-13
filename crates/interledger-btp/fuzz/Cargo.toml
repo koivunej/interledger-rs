@@ -1,0 +1,30 @@
+[package]
+name = "interledger-btp-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+prev = { package = "interledger-btp", git = "https://github.com/koivunej/interledger-rs.git", rev = "bd5386756caab72f53f3fda73219bf7362d00bdf" }
+bytes04 = { package = "bytes", version = "0.4" }
+bytes = { package = "bytes", version = "0.5" }
+hex = { version = "*" }
+
+[dependencies.interledger-btp]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_target_1"
+path = "fuzz_targets/fuzz_target_1.rs"
+test = false
+doc = false
