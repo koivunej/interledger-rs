@@ -47,6 +47,12 @@ pub enum BtpPacket {
 
 impl Serializable<BtpPacket> for BtpPacket {
     fn from_bytes(bytes: &[u8]) -> Result<BtpPacket, ParseError> {
+        if bytes.len() < 1 {
+            return Err(ParseError::IoErr(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "too short packet",
+            )));
+        }
         match PacketType::from(bytes[0]) {
             PacketType::Message => Ok(BtpPacket::Message(BtpMessage::from_bytes(bytes)?)),
             PacketType::Response => Ok(BtpPacket::Response(BtpResponse::from_bytes(bytes)?)),
