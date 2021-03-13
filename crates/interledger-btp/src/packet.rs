@@ -8,7 +8,6 @@ use num_bigint::BigUint;
 use once_cell::sync::Lazy;
 use std::io::prelude::*;
 use std::io::Cursor;
-use std::ops::Add;
 use std::str;
 
 static GENERALIZED_TIME_FORMAT: &str = "%Y%m%d%H%M%S%.3fZ";
@@ -102,9 +101,7 @@ where
     let mut protocol_data = Vec::new();
 
     let num_entries = reader.read_var_uint()?;
-    let mut i = BigUint::from(0u32);
-    while i < num_entries {
-        i = i.add(BigUint::from(1u8)); // this is probably slow
+    for _ in 0..num_entries {
         let protocol_name = String::from_utf8(reader.read_var_octet_string()?)?;
         let content_type = ContentType::from(reader.read_u8()?);
         let data = reader.read_var_octet_string()?;
