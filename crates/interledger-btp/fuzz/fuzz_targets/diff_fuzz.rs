@@ -16,10 +16,17 @@ fuzz_target!(|data: &[u8]| {
         (Ok((val, bytes)), Ok((old_val, old_bytes))) => {
             assert_eq!(bytes, old_bytes);
         }
-        (Err(e), Ok((old_val, _))) => {
+        (Err(e), Ok((old_val, old_bytes))) => {
+            if old_bytes != data {
+                // good, old implementation reads any too short packet
+                return;
+            }
             panic!(
-                "rejected {:?} but old parsed {:?} with {}",
-                data, old_val, e
+                "rejected {:?} but old parsed {:?} with {}; old_bytes == data: {}",
+                data,
+                old_val,
+                e,
+                old_bytes == data,
             );
         }
         (Ok((val, _)), Err(e)) => {
@@ -33,7 +40,7 @@ fuzz_target!(|data: &[u8]| {
                 &new,
                 &old,
                 &[(
-                    "I/O Error: too short variable length octet string",
+                    "I/O Error: varuint too large",
                     "I/O Error: failed to fill whole buffer",
                 )],
             );
@@ -57,6 +64,10 @@ fn check_display<A: fmt::Display, B: fmt::Display>(a: &A, b: &B, allowed: &[(&st
 
     let left = &s[..split_at];
     let right = &s[split_at..];
+
+    if left == "I/O Error: too short variable length octet string" {
+        return;
+    }
 
     for &(l, r) in allowed {
         if left == l && right == r {
