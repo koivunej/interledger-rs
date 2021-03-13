@@ -57,10 +57,18 @@ pub trait ReadOerExt: Read + ReadBytesExt + Debug {
         Ok(actual_length)
     }
 
-    #[inline]
-    fn read_var_uint(&mut self) -> Result<BigUint> {
-        let contents = self.read_var_octet_string()?;
-        Ok(BigUint::from_bytes_be(&contents))
+    fn read_var_uint(&mut self) -> Result<u64> {
+        use std::convert::TryFrom;
+        let mut len = usize::try_from(self.read_var_octet_string_length()?).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "varuint length overflow")
+        })?;
+
+        if len == 0 {
+            // writing side always appends the zero
+            len = 1;
+        }
+
+        self.read_uint::<BigEndian>(len)
     }
 }
 
