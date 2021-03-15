@@ -18,6 +18,7 @@ hex = { version = "*" }
 
 [dependencies.interledger-btp]
 path = ".."
+features = ["strict"]
 
 # Prevent this from interfering with workspaces
 [workspace]
