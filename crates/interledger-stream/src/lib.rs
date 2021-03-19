@@ -23,6 +23,13 @@ pub use server::{
     ConnectionGenerator, PaymentNotification, StreamNotificationsStore, StreamReceiverService,
 };
 
+#[cfg(fuzzing)]
+pub fn fuzz_decrypted_packet(data: &[u8]) {
+    let b = bytes::BytesMut::from(data);
+    let _ = packet::StreamPacket::from_decrypted(b);
+    // roundtripping is not an issue as BytesMut is owned by packet
+}
+
 #[cfg(test)]
 pub mod test_helpers {
     use super::*;
