@@ -55,8 +55,6 @@ pub mod fuzzing {
 
     pub fn roundtrip_btppacket(data: &[u8]) {
         if let Ok(x) = BtpPacket::from_bytes(data) {
-            // at the moment the parser accepts garbage at the end; it probably should not, see
-            // packet::tests::fuzzed::fuzz_4 for an example.
             let out = x.to_bytes();
 
             assert_eq!(data, out);
