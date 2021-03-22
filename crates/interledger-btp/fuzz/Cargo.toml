@@ -11,13 +11,9 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 
-prev = { package = "interledger-btp", git = "https://github.com/koivunej/interledger-rs.git", branch = "fuzzable_bytes04" }
-bytes04 = { package = "bytes", version = "0.4" }
-bytes = { package = "bytes", version = "0.5" }
-hex = { version = "*" }
-
 [dependencies.interledger-btp]
 path = ".."
+# this is required for roundtrip fuzzing
 features = ["strict"]
 
 # Prevent this from interfering with workspaces
@@ -27,11 +23,5 @@ members = ["."]
 [[bin]]
 name = "fuzz_target_1"
 path = "fuzz_targets/fuzz_target_1.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "diff_fuzz"
-path = "fuzz_targets/diff_fuzz.rs"
 test = false
 doc = false

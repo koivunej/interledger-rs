@@ -91,17 +91,6 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "bytes"
-version = "0.4.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "206fdffcfa2df7cbe15601ef46c813fce0965eb3286db6b56c583b814b51c81c"
-dependencies = [
- "byteorder",
- "iovec",
- "serde",
-]
-
-[[package]]
-name = "bytes"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e4cec68f03f32e44924783795810fa50a7035d8c8ebe78580ad7e6c703fba38"
@@ -438,12 +427,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hex"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-
-[[package]]
 name = "http"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -539,39 +522,9 @@ dependencies = [
  "bytes 0.5.6",
  "chrono",
  "futures",
- "interledger-errors 1.0.0",
- "interledger-packet 1.0.0",
- "interledger-service 1.0.0",
- "once_cell",
- "parking_lot",
- "pin-project 0.4.27",
- "rand 0.7.3",
- "secrecy",
- "stream-cancel",
- "thiserror",
- "tokio",
- "tokio-tungstenite 0.10.1",
- "tracing",
- "tungstenite 0.10.1",
- "url",
- "uuid",
- "warp",
-]
-
-[[package]]
-name = "interledger-btp"
-version = "1.0.0"
-source = "git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04#7f22e30379031420bb2b8acbdc3939294c7e744e"
-dependencies = [
- "async-trait",
- "byteorder",
- "bytes 0.4.12",
- "chrono",
- "futures",
- "interledger-errors 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
- "interledger-packet 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
- "interledger-service 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
- "num-bigint",
+ "interledger-errors",
+ "interledger-packet",
+ "interledger-service",
  "once_cell",
  "parking_lot",
  "pin-project 0.4.27",
@@ -592,11 +545,7 @@ dependencies = [
 name = "interledger-btp-fuzz"
 version = "0.0.0"
 dependencies = [
- "bytes 0.4.12",
- "bytes 0.5.6",
- "hex",
- "interledger-btp 1.0.0",
- "interledger-btp 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
+ "interledger-btp",
  "libfuzzer-sys",
 ]
 
@@ -606,25 +555,7 @@ version = "1.0.0"
 dependencies = [
  "chrono",
  "http",
- "interledger-packet 1.0.0",
- "once_cell",
- "regex",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "thiserror",
- "url",
- "warp",
-]
-
-[[package]]
-name = "interledger-errors"
-version = "1.0.0"
-source = "git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04#7f22e30379031420bb2b8acbdc3939294c7e744e"
-dependencies = [
- "chrono",
- "http",
- "interledger-packet 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
+ "interledger-packet",
  "once_cell",
  "regex",
  "serde",
@@ -648,44 +579,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "interledger-packet"
-version = "1.0.0"
-source = "git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04#7f22e30379031420bb2b8acbdc3939294c7e744e"
-dependencies = [
- "byteorder",
- "bytes 0.4.12",
- "bytes 0.5.6",
- "chrono",
- "once_cell",
- "regex",
- "thiserror",
-]
-
-[[package]]
 name = "interledger-service"
 version = "1.0.0"
 dependencies = [
  "async-trait",
  "futures",
- "interledger-errors 1.0.0",
- "interledger-packet 1.0.0",
- "once_cell",
- "regex",
- "serde",
- "unicase",
- "unicode-normalization",
- "uuid",
-]
-
-[[package]]
-name = "interledger-service"
-version = "1.0.0"
-source = "git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04#7f22e30379031420bb2b8acbdc3939294c7e744e"
-dependencies = [
- "async-trait",
- "futures",
- "interledger-errors 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
- "interledger-packet 1.0.0 (git+https://github.com/koivunej/interledger-rs.git?branch=fuzzable_bytes04)",
+ "interledger-errors",
+ "interledger-packet",
  "once_cell",
  "regex",
  "serde",
@@ -856,17 +756,6 @@ dependencies = [
  "cfg-if 0.1.10",
  "libc",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "num-bigint"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "090c7f9998ee0ff65aa5b723e4009f7b217707f1fb5ea551329cc4d6231fb304"
-dependencies = [
- "autocfg",
- "num-integer",
- "num-traits",
 ]
 
 [[package]]

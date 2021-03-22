@@ -60,13 +60,6 @@ pub mod fuzzing {
             assert_eq!(data, out);
         }
     }
-
-    /// Used for comparing two versions of this crate
-    pub fn verbose_roundtrip(data: &[u8]) -> Result<(BtpPacket, Vec<u8>), ParseError> {
-        let p = BtpPacket::from_bytes(data)?;
-        let out = p.to_bytes();
-        Ok((p, out))
-    }
 }
 
 #[cfg(test)]
