@@ -53,6 +53,12 @@ pub mod fuzzing {
     pub use crate::errors::ParseError;
     pub use crate::packet::{BtpPacket, Serializable};
 
+    #[cfg(not(feature = "strict"))]
+    pub fn roundtrip_btppacket(data: &[u8]) {
+        panic!("you need to enable 'strict' feature for roundtrip fuzzing");
+    }
+
+    #[cfg(feature = "strict")]
     pub fn roundtrip_btppacket(data: &[u8]) {
         if let Ok(x) = BtpPacket::from_bytes(data) {
             let out = x.to_bytes();
