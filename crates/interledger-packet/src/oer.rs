@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 use std::convert::TryFrom;
+use std::fmt::Write;
 use std::io::{Error, ErrorKind, Result};
 use std::u64;
 
@@ -61,9 +62,7 @@ pub trait BufOerExt<'a> {
     /// Decodes a variable length timestamp according to [RFC-0030].
     ///
     /// [RFC-0030]: https://github.com/interledger/rfcs/blob/2473d2963a65e5534076c483f3c08a81b8e0cc88/0030-notes-on-oer-encoding/0030-notes-on-oer-encoding.md#variable-length-timestamps
-    fn read_variable_length_timestamp<L: SmallVariableLengthField>(
-        &mut self,
-    ) -> Result<VariableLengthTimestamp<L>>;
+    fn read_variable_length_timestamp(&mut self) -> Result<VariableLengthTimestamp>;
 }
 
 impl<'a> BufOerExt<'a> for &'a [u8] {
@@ -172,9 +171,7 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
         }
     }
 
-    fn read_variable_length_timestamp<L: SmallVariableLengthField>(
-        &mut self,
-    ) -> Result<VariableLengthTimestamp<L>> {
+    fn read_variable_length_timestamp(&mut self) -> Result<VariableLengthTimestamp> {
         let regex = regex::bytes::Regex::new(r"^[0-9]{4}[0-9]{2}{5}(\.[0-9]{1,3})$").unwrap();
 
         // This takes the first byte as the length
@@ -201,7 +198,7 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
                 )
             })?;
 
-        Ok(VariableLengthTimestamp::<L> {
+        Ok(VariableLengthTimestamp {
             inner: ts,
             len: SmallVariableLengthField::from(octets.len()),
         })
@@ -239,14 +236,42 @@ impl SmallVariableLengthField for u8 {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct VariableLengthTimestamp<L> {
+pub struct VariableLengthTimestamp {
     pub inner: chrono::DateTime<chrono::Utc>,
-    pub len: L,
+    pub len: u8,
 }
 
-impl<L: SmallVariableLengthField> VariableLengthTimestamp<L> {
-    fn to_string(&self) -> String {
-        self.len.trim_millis(&self.inner)
+impl VariableLengthTimestamp {
+    fn trim(&self) -> String {
+        let delayed_format = self.inner.format(GENERALIZED_TIME_FORMAT);
+        let mut s = String::with_capacity(self.len as usize);
+        // TODO: handle error
+        write!(&mut s, "{}", delayed_format).unwrap();
+        let s = match self.len {
+            15 => {
+                // when parsing there were no fractions
+                &s[..14]
+            }
+            17 => {
+                // %.1f
+                &s[..16]
+            }
+            18 => {
+                // %.2f
+                &s[..17]
+            }
+            19 => {
+                // original %.3f is good
+                return s;
+            }
+            x => unreachable!("Should not have timestamp of length: {}", x),
+        };
+
+        // there is probably some nifty helper in std for this but
+        let mut out = String::with_capacity(s.len() + 1);
+        out.push_str(s);
+        out.push('Z');
+        out
     }
 }
 
@@ -293,13 +318,8 @@ pub trait MutBufOerExt: BufMut + Sized {
 
     /// Encodes the given timestamp per the rules, see
     /// [`BufOerExt::read_variable_length_timestamp`].
-    fn put_variable_length_timestamp<L: SmallVariableLengthField>(
-        &mut self,
-        vts: &VariableLengthTimestamp<L>,
-    ) {
-        let size = vts.len.to_usize();
-        self.put_var_octet_string_length(size);
-        self.put(vts.to_string().as_bytes());
+    fn put_variable_length_timestamp(&mut self, vts: &VariableLengthTimestamp) {
+        self.put_var_octet_string(vts.trim().as_bytes());
     }
 }
 
@@ -619,10 +639,7 @@ mod test_buf_oer_ext {
         for &(input, expected) in valid {
             buffer.clear();
             buffer.put_var_octet_string(input);
-            let ts = buffer
-                .as_ref()
-                .read_variable_length_timestamp::<u8>()
-                .unwrap();
+            let ts = buffer.as_ref().read_variable_length_timestamp().unwrap();
             assert_eq!(ts.len as usize, input.len());
             assert_eq!(expected, ts.inner.to_string());
         }
@@ -708,7 +725,7 @@ mod buf_mut_oer_ext {
         for (data, input, octet_length) in tests {
             write_buffer.clear();
 
-            write_buffer.put_variable_length_timestamp::<u8>(&VariableLengthTimestamp {
+            write_buffer.put_variable_length_timestamp(&VariableLengthTimestamp {
                 inner: Utc
                     .datetime_from_str(input, GENERALIZED_TIME_FORMAT)
                     .unwrap(),
