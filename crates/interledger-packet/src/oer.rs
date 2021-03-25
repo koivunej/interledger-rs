@@ -1,13 +1,12 @@
 #![forbid(unsafe_code)]
 
 use std::convert::TryFrom;
-use std::fmt;
 use std::io::{Error, ErrorKind, Result};
 use std::u64;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use bytes::{Buf, BufMut, BytesMut};
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 
 const HIGH_BIT: u8 = 0x80;
 const LOWER_SEVEN_BITS: u8 = 0x7f;
@@ -180,7 +179,6 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
 
         // This takes the first byte as the length
         let octets = self.read_var_octet_string()?;
-        println!("Reading Octets: {:?}", octets);
 
         if regex.is_match(octets) {
             // return some Err()
@@ -301,11 +299,7 @@ pub trait MutBufOerExt: BufMut + Sized {
     ) {
         let size = vts.len.to_usize();
         self.put_var_octet_string_length(size);
-        println!(
-            "being put octet: {:?}",
-            vts.len.trim_millis(&vts.inner).as_bytes()
-        );
-        self.put(vts.len.trim_millis(&vts.inner).as_bytes());
+        self.put(vts.to_string().as_bytes());
     }
 }
 
