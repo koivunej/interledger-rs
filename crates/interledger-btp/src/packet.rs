@@ -2,7 +2,7 @@ use super::errors::ParseError;
 use byteorder::{BigEndian, ReadBytesExt};
 use bytes::BufMut;
 use chrono::{DateTime, TimeZone, Utc};
-use interledger_packet::oer::{BufOerExt, MutBufOerExt};
+use interledger_packet::oer::{BufOerExt, MutBufOerExt, VariableLengthTimestamp};
 #[cfg(test)]
 use once_cell::sync::Lazy;
 use std::io::prelude::*;
@@ -233,7 +233,7 @@ pub struct BtpError {
     pub request_id: u32,
     pub code: String,
     pub name: String,
-    pub triggered_at: DateTime<Utc>,
+    pub triggered_at: VariableLengthTimestamp<u8>,
     pub data: String,
     pub protocol_data: Vec<ProtocolData>,
 }
@@ -256,8 +256,7 @@ impl Serializable<BtpError> for BtpError {
         let mut code: [u8; 3] = [0; 3];
         contents.read_exact(&mut code)?;
         let name = str::from_utf8(contents.read_var_octet_string()?)?.to_owned();
-        let triggered_at_string = str::from_utf8(contents.read_var_octet_string()?)?.to_owned();
-        let triggered_at = Utc.datetime_from_str(&triggered_at_string, GENERALIZED_TIME_FORMAT)?;
+        let triggered_at = contents.read_variable_length_timestamp()?;
         let data = str::from_utf8(contents.read_var_octet_string()?)?.to_owned();
         let protocol_data = read_protocol_data(&mut contents)?;
         Ok(BtpError {
@@ -278,12 +277,7 @@ impl Serializable<BtpError> for BtpError {
         // TODO check that the code is only 3 chars
         contents.put(self.code.as_bytes());
         contents.put_var_octet_string(self.name.as_bytes());
-        contents.put_var_octet_string(
-            self.triggered_at
-                .format(GENERALIZED_TIME_FORMAT)
-                .to_string()
-                .as_bytes(),
-        );
+        contents.put_variable_length_timestamp(&self.triggered_at);
         contents.put_var_octet_string(self.data.as_bytes());
         put_protocol_data(&mut contents, &self.protocol_data);
         buf.put_var_octet_string(&*contents);
@@ -536,9 +530,12 @@ mod tests {
             request_id: 501,
             code: String::from("T00"),
             name: String::from("UnreachableError"),
-            triggered_at: DateTime::parse_from_rfc3339("2018-08-31T02:53:24.899Z")
-                .unwrap()
-                .with_timezone(&Utc),
+            triggered_at: VariableLengthTimestamp {
+                inner: DateTime::parse_from_rfc3339("2018-08-31T02:53:24.899Z")
+                    .unwrap()
+                    .with_timezone(&Utc),
+                len: 19,
+            },
             data: String::from("oops"),
             protocol_data: vec![],
         });
