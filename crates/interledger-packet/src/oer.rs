@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 use std::convert::TryFrom;
+use std::fmt;
 use std::io::{Error, ErrorKind, Result};
 use std::u64;
 
@@ -61,7 +62,9 @@ pub trait BufOerExt<'a> {
     /// Decodes a variable length timestamp according to [RFC-0030].
     ///
     /// [RFC-0030]: https://github.com/interledger/rfcs/blob/2473d2963a65e5534076c483f3c08a81b8e0cc88/0030-notes-on-oer-encoding/0030-notes-on-oer-encoding.md#variable-length-timestamps
-    fn read_variable_length_timestamp(&mut self) -> Result<chrono::DateTime<chrono::Utc>>;
+    fn read_variable_length_timestamp<L: SmallVariableLengthField>(
+        &mut self,
+    ) -> Result<VariableLengthTimestamp<L>>;
 }
 
 impl<'a> BufOerExt<'a> for &'a [u8] {
@@ -170,40 +173,47 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
         }
     }
 
-    fn read_variable_length_timestamp<L>(&mut self) -> Result<VariableLengthTimestamp<L>> {
+    fn read_variable_length_timestamp<L: SmallVariableLengthField>(
+        &mut self,
+    ) -> Result<VariableLengthTimestamp<L>> {
         let regex = regex::bytes::Regex::new(r"^[0-9]{4}[0-9]{2}{5}(\.[0-9]{1,3})$").unwrap();
 
+        // This takes the first byte as the length
         let octets = self.read_var_octet_string()?;
+        println!("Reading Octets: {:?}", octets);
 
         if regex.is_match(octets) {
             // return some Err()
         }
 
         // the string might still have bad date in it
+        let s = std::str::from_utf8(octets).map_err(|e| {
+            Error::new(
+                ErrorKind::InvalidData,
+                format!("Octets to str conversion err: {}", e),
+            )
+        })?;
 
-        let s = std::str::from_utf8(octets)?;
-        let ts = Utc.datetime_from_str(s, GENERALIZED_TIME_FORMAT)?;
+        let ts = Utc
+            .datetime_from_str(s, GENERALIZED_TIME_FORMAT)
+            .map_err(|e| {
+                Error::new(
+                    ErrorKind::InvalidData,
+                    format!("UTC datatime conversion err: {}", e),
+                )
+            })?;
 
         Ok(VariableLengthTimestamp::<L> {
             inner: ts,
-            len: octets.len(),
+            len: SmallVariableLengthField::from(octets.len()),
         })
     }
 }
 
-trait SmallVariableLengthField {
+pub trait SmallVariableLengthField {
     fn from(len: usize) -> Self;
+    fn to_usize(&self) -> usize;
     fn trim_millis(&self, ts: &chrono::DateTime<chrono::Utc>) -> String;
-}
-
-impl SmallVariableLengthField for () {
-    fn from(len: usize) -> Self {
-        ()
-    }
-
-    fn trim_millis(&self, ts: &chrono::DateTime<chrono::Utc>) -> String {
-        todo!("just format to the longest length")
-    }
 }
 
 impl SmallVariableLengthField for u8 {
@@ -211,14 +221,29 @@ impl SmallVariableLengthField for u8 {
         u8::try_from(len).unwrap()
     }
 
+    fn to_usize(&self) -> usize {
+        usize::try_from(*self).unwrap()
+    }
+
     fn trim_millis(&self, ts: &chrono::DateTime<chrono::Utc>) -> String {
-        todo!("pick <no decimals>, %.1f, %.2f, %.3f per length or panic")
+        let str = ts.format(GENERALIZED_TIME_FORMAT).to_string();
+        let mut str_trimmed = match self {
+            15 => str[..14].to_owned(),
+            16 => panic!("Should not have time at this length"),
+            17 => str[..16].to_owned(),
+            18 => str[..17].to_owned(),
+            19 => return str,
+            _ => panic!("Should not have time at this length"),
+        };
+        str_trimmed.push('Z');
+        str_trimmed
     }
 }
 
-struct VariableLengthTimestamp<L> {
-    inner: chrono::DateTime<chrono::Utc>,
-    len: L,
+#[derive(Debug, PartialEq, Clone)]
+pub struct VariableLengthTimestamp<L> {
+    pub inner: chrono::DateTime<chrono::Utc>,
+    pub len: L,
 }
 
 impl<L: SmallVariableLengthField> VariableLengthTimestamp<L> {
@@ -270,8 +295,17 @@ pub trait MutBufOerExt: BufMut + Sized {
 
     /// Encodes the given timestamp per the rules, see
     /// [`BufOerExt::read_variable_length_timestamp`].
-    fn put_variable_length_timestamp(&mut self, _ts: &DateTime<Utc>) {
-        todo!("how to set the length for the string to roundtrip when fuzzing?")
+    fn put_variable_length_timestamp<L: SmallVariableLengthField>(
+        &mut self,
+        vts: &VariableLengthTimestamp<L>,
+    ) {
+        let size = vts.len.to_usize();
+        self.put_var_octet_string_length(size);
+        println!(
+            "being put octet: {:?}",
+            vts.len.trim_millis(&vts.inner).as_bytes()
+        );
+        self.put(vts.len.trim_millis(&vts.inner).as_bytes());
     }
 }
 
@@ -573,13 +607,17 @@ mod test_buf_oer_ext {
     #[test]
     fn read_variable_length_timestamp() {
         let valid: &[(&[u8], &str)] = &[
-            (b"20171224161432.279Z", "2017-12-24T16:14:32.279Z"),
-            (b"20171224161432.27Z", "2017-12-24T16:14:32.270Z"),
-            (b"20171224161432.2Z", "2017-12-24T16:14:32.200Z"),
-            (b"20171224161432Z", "2017-12-24T16:14:32.000Z"),
-            (b"20161231235960.852Z", "2016-12-31T23:59:60.852Z"),
-            (b"20171225000000Z", "2017-12-25T00:00:00.000Z"),
-            (b"99991224161432.279Z", "9999-12-24T16:14:32.279Z"),
+            (b"20171224161432.279Z", "2017-12-24 16:14:32.279 UTC"),
+            (b"20171224161432.27Z", "2017-12-24 16:14:32.270 UTC"),
+            (b"20171224161432.2Z", "2017-12-24 16:14:32.200 UTC"),
+            (b"20171224161432Z", "2017-12-24 16:14:32 UTC"),
+            // (b"20171224161432.279Z", "2017-12-24T16:14:32.279Z"),
+            // (b"20171224161432.27Z", "2017-12-24T16:14:32.270Z"),
+            // (b"20171224161432.2Z", "2017-12-24T16:14:32.200Z"),
+            // (b"20171224161432Z", "2017-12-24T16:14:32.000Z"),
+            // (b"20161231235960.852Z", "2016-12-31T23:59:60.852Z"),
+            // (b"20171225000000Z", "2017-12-25T00:00:00.000Z"),
+            // (b"99991224161432.279Z", "9999-12-24T16:14:32.279Z"),
         ];
 
         let mut buffer = BytesMut::with_capacity(1 + valid[0].0.len());
@@ -587,9 +625,12 @@ mod test_buf_oer_ext {
         for &(input, expected) in valid {
             buffer.clear();
             buffer.put_var_octet_string(input);
-            let ts = buffer.as_ref().read_variable_length_timestamp().unwrap();
-            let s = ts.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-            assert_eq!(expected, s);
+            let ts = buffer
+                .as_ref()
+                .read_variable_length_timestamp::<u8>()
+                .unwrap();
+            assert_eq!(ts.len as usize, input.len());
+            assert_eq!(expected, ts.inner.to_string());
         }
     }
 }
@@ -656,6 +697,32 @@ mod buf_mut_oer_ext {
             writer.clear();
             writer.put_var_uint(*value);
             assert_eq!(writer, *buffer);
+        }
+    }
+
+    #[test]
+    fn test_put_variable_length_timestamp() {
+        let tests: &[(&[u8], &str, u8)] = &[
+            (b"20171224161432.279Z", "20171224161432.279Z", 19),
+            (b"20171224161432.27Z", "20171224161432.27Z", 18),
+            (b"20171224161432.2Z", "20171224161432.2Z", 17),
+            (b"20171224161432Z", "20171224161432Z", 15),
+        ];
+
+        let mut write_buffer = BytesMut::with_capacity(1 + tests[0].0.len());
+
+        for (data, input, octet_length) in tests {
+            write_buffer.clear();
+
+            write_buffer.put_variable_length_timestamp::<u8>(&VariableLengthTimestamp {
+                inner: Utc
+                    .datetime_from_str(input, GENERALIZED_TIME_FORMAT)
+                    .unwrap(),
+                len: SmallVariableLengthField::from(input.len()),
+            });
+
+            assert_eq!(data, &write_buffer[1..].as_ref());
+            assert_eq!(octet_length, &write_buffer.as_ref()[0]);
         }
     }
 }
