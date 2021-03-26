@@ -196,7 +196,7 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
             .map_err(|e| {
                 Error::new(
                     ErrorKind::InvalidData,
-                    format!("UTC datatime conversion err: {}", e),
+                    format!("UTC datetime conversion err: {}", e),
                 )
             })?;
 
