@@ -524,18 +524,13 @@ mod tests {
 
     mod btp_error {
         use super::*;
-        use chrono::{DateTime, Utc};
 
         static ERROR_1: Lazy<BtpError> = Lazy::new(|| BtpError {
             request_id: 501,
             code: String::from("T00"),
             name: String::from("UnreachableError"),
-            triggered_at: VariableLengthTimestamp {
-                inner: DateTime::parse_from_rfc3339("2018-08-31T02:53:24.899Z")
-                    .unwrap()
-                    .with_timezone(&Utc),
-                len: 19,
-            },
+            triggered_at: VariableLengthTimestamp::parse_from_rfc3339("2018-08-31T02:53:24.899Z")
+                .unwrap(),
             data: String::from("oops"),
             protocol_data: vec![],
         });

@@ -248,13 +248,21 @@ impl SmallVariableLengthField for u8 {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct VariableLengthTimestamp {
-    pub inner: chrono::DateTime<chrono::Utc>,
-    pub len: u8,
+    inner: chrono::DateTime<chrono::Utc>,
+    len: u8,
 }
 
 impl VariableLengthTimestamp {
     fn to_str(&self) -> String {
         self.len.trim_millis(&self.inner)
+    }
+
+    /// Returns a full length timestamp of the value parsed as RFC3339.
+    pub fn parse_from_rfc3339(s: &str) -> std::result::Result<Self, chrono::ParseError> {
+        Ok(VariableLengthTimestamp {
+            inner: chrono::DateTime::parse_from_rfc3339(s)?.with_timezone(&Utc),
+            len: 19,
+        })
     }
 }
 
