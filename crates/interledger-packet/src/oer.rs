@@ -171,12 +171,16 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
     }
 
     fn read_variable_length_timestamp(&mut self) -> Result<VariableLengthTimestamp> {
-        let regex = regex::bytes::Regex::new(r"^[0-9]{4}[0-9]{2}{5}(\.[0-9]{1,3})?Z$").unwrap();
+        use once_cell::sync::OnceCell;
+        use regex::bytes::Regex;
+
+        static RE: OnceCell<Regex> = OnceCell::new();
+        let re = RE.get_or_init(|| Regex::new(r"^[0-9]{4}[0-9]{2}{5}(\.[0-9]{1,3})?Z$").unwrap());
 
         // This takes the first byte as the length and return the rest
         let octets = self.read_var_octet_string()?;
 
-        if !regex.is_match(octets) {
+        if !re.is_match(octets) {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 "Input failed to parse as timestamp",
