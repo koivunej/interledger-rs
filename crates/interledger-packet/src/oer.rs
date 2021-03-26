@@ -196,12 +196,8 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
         }
 
         // the string might still have bad date in it
-        let s = std::str::from_utf8(octets).map_err(|e| {
-            Error::new(
-                ErrorKind::InvalidData,
-                format!("Octets to str conversion err: {}", e),
-            )
-        })?;
+        let s = std::str::from_utf8(octets)
+            .expect("re matches only ascii, utf8 conversion must succeed");
 
         let ts = Utc
             .datetime_from_str(s, GENERALIZED_TIME_FORMAT)
