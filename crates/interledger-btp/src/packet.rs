@@ -1,7 +1,6 @@
 use super::errors::ParseError;
 use byteorder::{BigEndian, ReadBytesExt};
 use bytes::BufMut;
-use chrono::{DateTime, TimeZone, Utc};
 use interledger_packet::oer::{BufOerExt, MutBufOerExt, VariableLengthTimestamp};
 #[cfg(test)]
 use once_cell::sync::Lazy;
@@ -525,6 +524,7 @@ mod tests {
 
     mod btp_error {
         use super::*;
+        use chrono::{DateTime, Utc};
 
         static ERROR_1: Lazy<BtpError> = Lazy::new(|| BtpError {
             request_id: 501,
