@@ -206,43 +206,8 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
 
         Ok(VariableLengthTimestamp {
             inner: ts,
-            len: SmallVariableLengthField::from(octets.len()),
+            len: octets.len() as u8,
         })
-    }
-}
-
-pub trait SmallVariableLengthField {
-    fn from(len: usize) -> Self;
-    fn to_usize(&self) -> usize;
-    fn trim_millis(&self, ts: &chrono::DateTime<chrono::Utc>) -> String;
-}
-
-impl SmallVariableLengthField for u8 {
-    fn from(len: usize) -> Self {
-        u8::try_from(len).unwrap()
-    }
-
-    fn to_usize(&self) -> usize {
-        usize::try_from(*self).unwrap()
-    }
-
-    fn trim_millis(&self, ts: &chrono::DateTime<chrono::Utc>) -> String {
-        let str = ts.format(GENERALIZED_TIME_FORMAT).to_string();
-        let s_trimmed = match self {
-            // no fraction
-            15 => &str[..14],
-            // %.1f
-            17 => &str[..16],
-            // %.2f
-            18 => &str[..17],
-            // %.3f
-            19 => return str,
-            _ => panic!("Should not have time at this length"),
-        };
-        let mut out = String::with_capacity(s_trimmed.len() + 1);
-        out.push_str(s_trimmed);
-        out.push('Z');
-        out
     }
 }
 
@@ -253,16 +218,32 @@ pub struct VariableLengthTimestamp {
 }
 
 impl VariableLengthTimestamp {
-    fn to_str(&self) -> String {
-        self.len.trim_millis(&self.inner)
-    }
-
     /// Returns a full length timestamp of the value parsed as RFC3339.
     pub fn parse_from_rfc3339(s: &str) -> std::result::Result<Self, chrono::ParseError> {
         Ok(VariableLengthTimestamp {
             inner: chrono::DateTime::parse_from_rfc3339(s)?.with_timezone(&Utc),
             len: 19,
         })
+    }
+}
+
+use std::fmt;
+
+impl fmt::Display for VariableLengthTimestamp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let str = self.inner.format(GENERALIZED_TIME_FORMAT).to_string();
+        let s_trimmed = match self.len {
+            // no fraction
+            15 => &str[..14],
+            // %.1f
+            17 => &str[..16],
+            // %.2f
+            18 => &str[..17],
+            // %.3f
+            19 => return write!(f, "{}", str),
+            _ => panic!("Should not have time at this length"),
+        };
+        write!(f, "{}Z", s_trimmed)
     }
 }
 
@@ -310,7 +291,7 @@ pub trait MutBufOerExt: BufMut + Sized {
     /// Encodes the given timestamp per the rules, see
     /// [`BufOerExt::read_variable_length_timestamp`].
     fn put_variable_length_timestamp(&mut self, vts: &VariableLengthTimestamp) {
-        self.put_var_octet_string(vts.to_str().as_bytes());
+        self.put_var_octet_string(vts.to_string().as_bytes());
     }
 }
 
@@ -718,7 +699,7 @@ mod buf_mut_oer_ext {
                 .read_variable_length_timestamp()
                 .unwrap();
 
-            assert_eq!(&ts.to_str(), input);
+            assert_eq!(&ts.to_string(), input);
 
             write_buffer.clear();
             write_buffer.put_variable_length_timestamp(&ts);
