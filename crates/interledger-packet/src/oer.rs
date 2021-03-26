@@ -180,6 +180,14 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
         // This takes the first byte as the length and return the rest
         let octets = self.read_var_octet_string()?;
 
+        let len = match octets.len() {
+            15 | 17 | 18 | 19 => Ok(octets.len() as u8),
+            x => Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("Invalid length for variable length timestamp: {}", x),
+            )),
+        }?;
+
         if !re.is_match(octets) {
             return Err(Error::new(
                 ErrorKind::InvalidData,
@@ -204,10 +212,7 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
                 )
             })?;
 
-        Ok(VariableLengthTimestamp {
-            inner: ts,
-            len: octets.len() as u8,
-        })
+        Ok(VariableLengthTimestamp { inner: ts, len })
     }
 }
 
