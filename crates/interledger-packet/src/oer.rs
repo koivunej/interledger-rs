@@ -171,7 +171,7 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
     }
 
     fn read_variable_length_timestamp(&mut self) -> Result<VariableLengthTimestamp> {
-        let regex = regex::bytes::Regex::new(r"^[0-9]{4}[0-9]{2}{5}(\.[0-9]{1,3})?$").unwrap();
+        let regex = regex::bytes::Regex::new(r"^[0-9]{4}[0-9]{2}{5}(\.[0-9]{1,3})?Z$").unwrap();
 
         // This takes the first byte as the length and return the rest
         let octets = self.read_var_octet_string()?;
