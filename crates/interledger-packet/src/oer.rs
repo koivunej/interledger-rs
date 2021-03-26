@@ -236,19 +236,23 @@ use std::fmt;
 
 impl fmt::Display for VariableLengthTimestamp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let str = self.inner.format(GENERALIZED_TIME_FORMAT).to_string();
-        let s_trimmed = match self.len {
-            // no fraction
-            15 => &str[..14],
-            // %.1f
-            17 => &str[..16],
-            // %.2f
-            18 => &str[..17],
-            // %.3f
-            19 => return write!(f, "{}", str),
-            _ => panic!("Should not have time at this length"),
-        };
-        write!(f, "{}Z", s_trimmed)
+        use chrono::Timelike;
+
+        // first let chrono format without the fractions and ending Z
+        fmt::Display::fmt(&self.inner.format("%Y%m%d%H%M%S"), f)?;
+
+        // then depending on the length add enough fractions (chrono doesn't support %.1f or %.2f)
+        let nanos = self.inner.time().nanosecond() % 1_000_000_000;
+        match self.len {
+            15 => Ok(()),
+            17 => write!(f, ".{:01}", nanos / 100_000_000),
+            18 => write!(f, ".{:02}", nanos / 10_000_000),
+            19 => write!(f, ".{:03}", nanos / 1_000_000),
+            x => unreachable!("should not have timestamp of length: {}", x),
+        }?;
+
+        // all varlen timestamps end with Z
+        write!(f, "Z")
     }
 }
 
