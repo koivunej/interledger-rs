@@ -8,8 +8,6 @@ use once_cell::sync::Lazy;
 use std::io::prelude::*;
 use std::str;
 
-static GENERALIZED_TIME_FORMAT: &str = "%Y%m%d%H%M%S%.3fZ";
-
 pub trait Serializable<T> {
     fn from_bytes(bytes: &[u8]) -> Result<T, ParseError>;
 
@@ -392,7 +390,7 @@ mod tests {
             // of the parsed timestamp is longer than in the input. we'd need:
             //  - be more strict on
             #[rustfmt::skip]
-            roundtrip(&[
+            fails_to_parse(&[
                 // packettype error
                 2,
                 // request id
