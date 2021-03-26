@@ -173,11 +173,14 @@ impl<'a> BufOerExt<'a> for &'a [u8] {
     fn read_variable_length_timestamp(&mut self) -> Result<VariableLengthTimestamp> {
         let regex = regex::bytes::Regex::new(r"^[0-9]{4}[0-9]{2}{5}(\.[0-9]{1,3})?$").unwrap();
 
-        // This takes the first byte as the length
+        // This takes the first byte as the length and return the rest
         let octets = self.read_var_octet_string()?;
 
-        if regex.is_match(octets) {
-            // return some Err()
+        if !regex.is_match(octets) {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Input failed to parse as timestamp",
+            ));
         }
 
         // the string might still have bad date in it
