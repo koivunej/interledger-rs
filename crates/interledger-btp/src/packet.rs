@@ -233,7 +233,7 @@ pub struct BtpError {
     pub request_id: u32,
     pub code: String,
     pub name: String,
-    pub triggered_at: VariableLengthTimestamp<u8>,
+    pub triggered_at: VariableLengthTimestamp,
     pub data: String,
     pub protocol_data: Vec<ProtocolData>,
 }

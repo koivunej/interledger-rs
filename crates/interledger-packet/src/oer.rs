@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 
 use std::convert::TryFrom;
-use std::fmt::Write;
 use std::io::{Error, ErrorKind, Result};
 use std::u64;
 
@@ -222,16 +221,21 @@ impl SmallVariableLengthField for u8 {
 
     fn trim_millis(&self, ts: &chrono::DateTime<chrono::Utc>) -> String {
         let str = ts.format(GENERALIZED_TIME_FORMAT).to_string();
-        let mut str_trimmed = match self {
-            15 => str[..14].to_owned(),
-            16 => panic!("Should not have time at this length"),
-            17 => str[..16].to_owned(),
-            18 => str[..17].to_owned(),
+        let s_trimmed = match self {
+            // no fraction
+            15 => &str[..14],
+            // %.1f
+            17 => &str[..16],
+            // %.2f
+            18 => &str[..17],
+            // %.3f
             19 => return str,
             _ => panic!("Should not have time at this length"),
         };
-        str_trimmed.push('Z');
-        str_trimmed
+        let mut out = String::with_capacity(s_trimmed.len() + 1);
+        out.push_str(s_trimmed);
+        out.push('Z');
+        out
     }
 }
 
@@ -242,36 +246,8 @@ pub struct VariableLengthTimestamp {
 }
 
 impl VariableLengthTimestamp {
-    fn trim(&self) -> String {
-        let delayed_format = self.inner.format(GENERALIZED_TIME_FORMAT);
-        let mut s = String::with_capacity(self.len as usize);
-        // TODO: handle error
-        write!(&mut s, "{}", delayed_format).unwrap();
-        let s = match self.len {
-            15 => {
-                // when parsing there were no fractions
-                &s[..14]
-            }
-            17 => {
-                // %.1f
-                &s[..16]
-            }
-            18 => {
-                // %.2f
-                &s[..17]
-            }
-            19 => {
-                // original %.3f is good
-                return s;
-            }
-            x => unreachable!("Should not have timestamp of length: {}", x),
-        };
-
-        // there is probably some nifty helper in std for this but
-        let mut out = String::with_capacity(s.len() + 1);
-        out.push_str(s);
-        out.push('Z');
-        out
+    fn to_str(&self) -> String {
+        self.len.trim_millis(&self.inner)
     }
 }
 
@@ -319,7 +295,7 @@ pub trait MutBufOerExt: BufMut + Sized {
     /// Encodes the given timestamp per the rules, see
     /// [`BufOerExt::read_variable_length_timestamp`].
     fn put_variable_length_timestamp(&mut self, vts: &VariableLengthTimestamp) {
-        self.put_var_octet_string(vts.trim().as_bytes());
+        self.put_var_octet_string(vts.to_str().as_bytes());
     }
 }
 
@@ -625,13 +601,9 @@ mod test_buf_oer_ext {
             (b"20171224161432.27Z", "2017-12-24 16:14:32.270 UTC"),
             (b"20171224161432.2Z", "2017-12-24 16:14:32.200 UTC"),
             (b"20171224161432Z", "2017-12-24 16:14:32 UTC"),
-            // (b"20171224161432.279Z", "2017-12-24T16:14:32.279Z"),
-            // (b"20171224161432.27Z", "2017-12-24T16:14:32.270Z"),
-            // (b"20171224161432.2Z", "2017-12-24T16:14:32.200Z"),
-            // (b"20171224161432Z", "2017-12-24T16:14:32.000Z"),
-            // (b"20161231235960.852Z", "2016-12-31T23:59:60.852Z"),
-            // (b"20171225000000Z", "2017-12-25T00:00:00.000Z"),
-            // (b"99991224161432.279Z", "9999-12-24T16:14:32.279Z"),
+            (b"20161231235960.852Z", "2016-12-31 23:59:60.852 UTC"),
+            (b"20171225000000Z", "2017-12-25 00:00:00 UTC"),
+            (b"99991224161432.279Z", "9999-12-24 16:14:32.279 UTC"),
         ];
 
         let mut buffer = BytesMut::with_capacity(1 + valid[0].0.len());
@@ -713,27 +685,30 @@ mod buf_mut_oer_ext {
 
     #[test]
     fn test_put_variable_length_timestamp() {
-        let tests: &[(&[u8], &str, u8)] = &[
-            (b"20171224161432.279Z", "20171224161432.279Z", 19),
-            (b"20171224161432.27Z", "20171224161432.27Z", 18),
-            (b"20171224161432.2Z", "20171224161432.2Z", 17),
-            (b"20171224161432Z", "20171224161432Z", 15),
+        let tests: &[(&[u8], &str)] = &[
+            (b"20171224161432.279Z", "20171224161432.279Z"),
+            (b"20171224161432.27Z", "20171224161432.27Z"),
+            (b"20171224161432.2Z", "20171224161432.2Z"),
+            (b"20171224161432Z", "20171224161432Z"),
         ];
 
         let mut write_buffer = BytesMut::with_capacity(1 + tests[0].0.len());
 
-        for (data, input, octet_length) in tests {
+        for (data, input) in tests {
             write_buffer.clear();
 
-            write_buffer.put_variable_length_timestamp(&VariableLengthTimestamp {
-                inner: Utc
-                    .datetime_from_str(input, GENERALIZED_TIME_FORMAT)
-                    .unwrap(),
-                len: SmallVariableLengthField::from(input.len()),
-            });
+            write_buffer.put_var_octet_string(*data);
+            let ts = write_buffer
+                .as_ref()
+                .read_variable_length_timestamp()
+                .unwrap();
+
+            assert_eq!(&ts.to_str(), input);
+
+            write_buffer.clear();
+            write_buffer.put_variable_length_timestamp(&ts);
 
             assert_eq!(data, &write_buffer[1..].as_ref());
-            assert_eq!(octet_length, &write_buffer.as_ref()[0]);
         }
     }
 }
