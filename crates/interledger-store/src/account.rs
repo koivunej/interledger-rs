@@ -313,11 +313,9 @@ impl BtpAccount for Account {
     }
 
     fn get_ilp_over_btp_outgoing_token(&self) -> Option<&[u8]> {
-        if let Some(ref token) = self.ilp_over_btp_outgoing_token {
-            Some(&token.expose_secret())
-        } else {
-            None
-        }
+        self.ilp_over_btp_outgoing_token
+            .as_ref()
+            .map(|token| &**token.expose_secret())
     }
 }
 
