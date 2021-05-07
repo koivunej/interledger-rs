@@ -351,10 +351,9 @@ impl RateLimitAccount for Account {
 
 impl SettlementAccount for Account {
     fn settlement_engine_details(&self) -> Option<SettlementEngineDetails> {
-        match &self.settlement_engine_url {
-            Some(url) => Some(SettlementEngineDetails { url: url.clone() }),
-            _ => None,
-        }
+        self.settlement_engine_url
+            .as_ref()
+            .map(|url| SettlementEngineDetails { url: url.clone() })
     }
 }
 
